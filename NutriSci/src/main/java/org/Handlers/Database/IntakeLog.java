@@ -5,19 +5,46 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/** In-memory storage for meals */
+
+import org.Entity.Meal;
+import org.Entity.DateRange;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
 public class IntakeLog {
     private static List<Meal> meals = new ArrayList<>();
 
+    // Save a meal to the in-memory list
     public void saveMeal(Meal meal) {
         meals.add(meal);
     }
+
+    // Original method (optional)
     public static List<Meal> fetchMealsByDate(LocalDate date) {
         List<Meal> result = new ArrayList<>();
         for (Meal m : meals) {
-            if (m.getDate().equals(date)) result.add(m);
+            if (m.getDate().equals(date)) {
+                result.add(m);
+            }
         }
         return result;
     }
 
+    // ✅ NEW: Used by Swing UI to fetch meals between two dates
+    public List<Meal> getMealsBetween(DateRange range) {
+        List<Meal> result = new ArrayList<>();
+        for (Meal m : meals) {
+            if (!m.getDate().isBefore(range.getStart()) && !m.getDate().isAfter(range.getEnd())) {
+                result.add(m);
+            }
+        }
+        return result;
+    }
+
+    // ✅ NEW: Used by Swing UI after swaps
+    public void updateMeals(List<Meal> updatedMeals) {
+        meals = new ArrayList<>(updatedMeals);
+    }
 }
