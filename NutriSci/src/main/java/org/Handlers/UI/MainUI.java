@@ -48,6 +48,5 @@ public class MainUI {
         Map<String, Integer> chartData = new HashMap<>();
         chartData.put("Items Eaten", items);
         chartData.put("Exercises", exercises);
-        Visualizer.showPie(chartData, "Today's Activity");
     }
 }
