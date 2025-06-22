@@ -17,7 +17,7 @@ public class IntakeLog {
     private static List<Meal> meals = new ArrayList<>();
 
 
-    public void saveMeal(Meal meal) {
+    public void saveMeal(Meal meal) { 
         meals.add(meal);
     }
 
