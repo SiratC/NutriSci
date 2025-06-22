@@ -16,12 +16,12 @@ import java.util.List;
 public class IntakeLog {
     private static List<Meal> meals = new ArrayList<>();
 
-    // Save a meal to the in-memory list
+
     public void saveMeal(Meal meal) {
         meals.add(meal);
     }
 
-    // Original method (optional)
+
     public static List<Meal> fetchMealsByDate(LocalDate date) {
         List<Meal> result = new ArrayList<>();
         for (Meal m : meals) {
@@ -32,7 +32,6 @@ public class IntakeLog {
         return result;
     }
 
-    // ✅ NEW: Used by Swing UI to fetch meals between two dates
     public List<Meal> getMealsBetween(DateRange range) {
         List<Meal> result = new ArrayList<>();
         for (Meal m : meals) {
@@ -43,7 +42,7 @@ public class IntakeLog {
         return result;
     }
 
-    // ✅ NEW: Used by Swing UI after swaps
+
     public void updateMeals(List<Meal> updatedMeals) {
         meals = new ArrayList<>(updatedMeals);
     }

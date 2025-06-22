@@ -14,9 +14,7 @@ public class Meal {
         this.date = date;
     }
 
-    /**
-     * Add a food to this meal.
-     */
+
     public void addItem(Food food) {
         items.add(food);
     }
