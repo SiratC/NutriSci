@@ -11,7 +11,7 @@ public class Meal {
     private final List<Food> items = new ArrayList<>();
 
     public Meal(LocalDate date) {
-        this.date = date;
+        this.date = date; 
     }
 
 
