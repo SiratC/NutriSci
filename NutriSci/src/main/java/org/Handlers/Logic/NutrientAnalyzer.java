@@ -9,7 +9,7 @@ import java.util.List;
 public class NutrientAnalyzer implements Analyzer<List<Meal>, NutrientStats> {
     @Override
     public NutrientStats analyze(List<Meal> meals) {
-        // counts items in the list
+
         int totalItems = 0;
         for (Meal m : meals) {
             totalItems += m.getItems().size();
@@ -20,4 +20,6 @@ public class NutrientAnalyzer implements Analyzer<List<Meal>, NutrientStats> {
         return stats;
     }
 }
+
+
 
