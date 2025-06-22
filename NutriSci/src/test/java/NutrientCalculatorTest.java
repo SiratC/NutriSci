@@ -18,7 +18,7 @@ class NutrientCalculatorTest {
 
         Map<NutrientType, Double> result = calc.calculate(meal);
 
-        // for exact number
+        // for exact number 
         assertTrue(result.get(NutrientType.Protein) == 30.0); // 3 (quantity) x 10 (protein) = 30
 
         // for floating number
