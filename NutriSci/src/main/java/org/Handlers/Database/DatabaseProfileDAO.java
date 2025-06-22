@@ -13,8 +13,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * An implementation of ProfileDAO, controlling the user interactions for profile managing such as saving, deleting, updating, etc.
+ */
 public class DatabaseProfileDAO implements ProfileDAO {
-
+    /**
+     * Saves the information based on given profile settings.
+     *
+     * @param profile the profile to be saved
+     * @throws RuntimeException if profile isn't saved
+     */
     @Override
     public void save(Profile profile) {
         String sql = """
@@ -43,6 +51,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Updates existing data within profile with changed settings given.
+     *
+     * @param profile the profile to be saved
+     * @throws RuntimeException if profile isn't found with given ID
+     * @throws RuntimeException if profile isn't updated
+     */
     @Override
     public void update(Profile profile) {
         String sql = """
@@ -73,6 +88,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Deletes the profile found through given ID.
+     *
+     * @param id identification of the profile
+     * @throws RuntimeException if profile isn't found with given ID
+     * @throws RuntimeException if profile isn't deleted
+     */
     @Override
     public void delete(UUID id) {
         String sql = "DELETE FROM Profiles WHERE id = ?";
@@ -92,6 +114,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds a profile based on given ID.
+     *
+     * @param id the identification of the profile
+     * @return the profile
+     * @throws RuntimeException if profile isn't found with given ID
+     */
     @Override
     public Optional<Profile> findById(UUID id) {
         String sql = "SELECT * FROM Profiles WHERE id = ?";
@@ -113,6 +142,12 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds all profile sorted based off of user specifications such as creation date.
+     *
+     * @return list of profiles
+     * @throws RuntimeException if all profiles aren't found
+     */
     @Override
     public List<Profile> findAll() {
         String sql = "SELECT * FROM Profiles ORDER BY createdAt DESC";
@@ -132,6 +167,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds and returns profile based off of the name.
+     *
+     * @param name the name of profile
+     * @return a profile
+     * @throws RuntimeException if profile isn't found with given ID
+     */
     @Override
     public Optional<Profile> findByName(String name) {
         // NOTE: Profile class doesn't have a name field, but database schema does
@@ -155,6 +197,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds and returns profile based off of the sex.
+     *
+     * @param sex the sex of profile
+     * @return list of profiles found
+     * @throws RuntimeException if profiles aren't found with given sex
+     */
     @Override
     public List<Profile> findBySex(String sex) {
         String sql = "SELECT * FROM Profiles WHERE sex = ? ORDER BY dob DESC";
@@ -177,6 +226,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds and returns a list of profiles based on the units chosen.
+     *
+     * @param units the unit of measurement in profile
+     * @return list of profiles found
+     * @throws RuntimeException if profiles aren't found with given units
+     */
     @Override
     public List<Profile> findByUnits(String units) {
         String sql = "SELECT * FROM Profiles WHERE units = ? ORDER BY dob DESC";
@@ -199,6 +255,14 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds and returns a list of profiles based on an age range specified
+     *
+     * @param minAge minimum age in range criteria
+     * @param maxAge maximum age in range criteria
+     * @return list of profiles found
+     * @throws RuntimeException if profiles aren't found with given age range
+     */
     @Override
     public List<Profile> findByAgeRange(int minAge, int maxAge) {
         String sql = """
@@ -226,6 +290,14 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds and returns a list of profiles based on an age range specified
+     *
+     * @param minHeight minimum height in range criteria
+     * @param maxHeight maximum height in range criteria
+     * @return list of profiles found
+     * @throws RuntimeException if profiles aren't found with given height
+     */
     @Override
     public List<Profile> findByHeightRange(BigDecimal minHeight, BigDecimal maxHeight) {
         String sql = "SELECT * FROM Profiles WHERE height BETWEEN ? AND ? ORDER BY height";
@@ -249,6 +321,14 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Finds and returns a list of profiles based on a weight range specified
+     *
+     * @param minWeight minimum weight in range criteria
+     * @param maxWeight maximum weight in range criteria
+     * @return list of profiles found
+     * @throws RuntimeException if profiles aren't found with given weight range
+     */
     @Override
     public List<Profile> findByWeightRange(BigDecimal minWeight, BigDecimal maxWeight) {
         String sql = "SELECT * FROM Profiles WHERE weight BETWEEN ? AND ? ORDER BY weight";
@@ -272,6 +352,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Searches for profile based on name and returns true if it exists.
+     *
+     * @param name the name of the profile
+     * @return true if profile exists, false otherwise
+     * @throws RuntimeException if error occurs during searching of given name
+     */
     @Override
     public boolean existsByName(String name) {
         // NOTE: Profile class doesn't have a name field, but database schema does
@@ -292,6 +379,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Searches for profile based on name and returns true if it exists.
+     *
+     * @param id the ID of the profile
+     * @return true if profile exists, false otherwise
+     * @throws RuntimeException if error occurs during searching of given ID
+     */
     @Override
     public boolean existsById(UUID id) {
         String sql = "SELECT COUNT(*) FROM Profiles WHERE id = ?";
@@ -311,6 +405,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Returns and creates a profile based on a given SQL result.
+     *
+     * @param rs a given ResultSet to create into a profile
+     * @return a profile containing the data given
+     * @throws SQLException if database error occurs
+     */
     private Profile mapResultSetToProfile(ResultSet rs) throws SQLException {
         UUID userID = (UUID) rs.getObject("id");
         String name = rs.getString("name");
