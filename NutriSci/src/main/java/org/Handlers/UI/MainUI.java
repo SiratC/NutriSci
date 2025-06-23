@@ -76,7 +76,7 @@ public class MainUI {
 
         profileManager.saveProfile(currentUser);
 
-        JOptionPane.showMessageDialog(parent, "✅ Profile created for user: " + id);
+        JOptionPane.showMessageDialog(parent, "Profile created for user: " + id);
     }
 
     // === Meal Tab with Visualizer ===
@@ -124,7 +124,7 @@ public class MainUI {
         chartFrame.setLocationRelativeTo(parent);
         chartFrame.setVisible(true);
 
-        JOptionPane.showMessageDialog(parent, "✅ Meal and exercise logged.");
+        JOptionPane.showMessageDialog(parent, "The meal and exercise are logged.");
     }
 
     // === Swap Tab ===
@@ -151,11 +151,11 @@ public class MainUI {
             return;
         }
 
-        SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2020);
+        SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2019);
         List<Meal> swapped = swapEngine.applySwap(meals, request);
         intakeLog.updateMeals(swapped);
 
-        JOptionPane.showMessageDialog(parent, "✅ Swaps applied to " + swapped.size() + " meals.");
+        JOptionPane.showMessageDialog(parent, "Swaps applied to " + swapped.size() + " meals.");
     }
 
     // === Utility ===
