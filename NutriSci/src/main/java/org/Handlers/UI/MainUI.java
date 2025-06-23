@@ -95,7 +95,7 @@ public class MainUI {
         UUID id = UUID.randomUUID();
         currentUser = new Profile(id, Sex.Female, LocalDate.of(1990, 1, 1), 165, 60, "metric");
         profileManager.saveProfile(currentUser);
-        JOptionPane.showMessageDialog(parent, "✅ Profile created for user: " + id);
+        JOptionPane.showMessageDialog(parent, "Profile created for user: " + id);
     }
 
     // === Meal Tab ===
@@ -122,7 +122,7 @@ public class MainUI {
         Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));
         exerciseLog.saveSession(run);
 
-        JOptionPane.showMessageDialog(parent, "✅ Meal and exercise logged.");
+        JOptionPane.showMessageDialog(parent, " The meal and exercise are logged.");
     }
 
     // === Swap Tab ===
@@ -137,7 +137,7 @@ public class MainUI {
 
     private static void handleSwapLogic(Component parent) {
         if (currentUser == null) {
-            showError(parent, "Please create a profile first.");
+            showError(parent, "First please create a profile .");
             return;
         }
 
@@ -153,7 +153,7 @@ public class MainUI {
         List<Meal> swapped = swapEngine.applySwap(meals, request);
         intakeLog.updateMeals(swapped);
 
-        JOptionPane.showMessageDialog(parent, "✅ Swaps applied to " + swapped.size() + " meals.");
+        JOptionPane.showMessageDialog(parent, "Swaps are applied to " + swapped.size() + " meals.");
     }
 
     // === Utility ===
