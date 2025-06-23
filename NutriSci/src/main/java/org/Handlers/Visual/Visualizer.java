@@ -1,8 +1,6 @@
 package org.Handlers.Visual;
 
-/**
- * Manages the creation of visualizations of statistics such as graphs and charts.
- */
+
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -10,13 +8,16 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.data.general.DefaultPieDataset;
 
 import java.util.Map;
-
+/**
+ * Manages the creation of visualizations of statistics such as graphs and charts.
+ */
 public class Visualizer {
 
     /**
      * Builds a ChartPanel of a Pie Chart of the given data.
      * @param data  labels → values
      * @param title chart title
+     * @return the Chart representing the data values
      */
     public static ChartPanel createPieChartPanel(Map<String, Double> data, String title) {
 

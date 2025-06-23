@@ -1,8 +1,0 @@
-org.Dao
-org.Entity
-org.Enums
-org.Handlers.Controller
-org.Handlers.Database
-org.Handlers.Logic
-org.Handlers.UI
-org.Handlers.Visual

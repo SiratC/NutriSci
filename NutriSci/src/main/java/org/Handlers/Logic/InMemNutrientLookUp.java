@@ -4,11 +4,18 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
-// dummy visualizer for now
+
+/**
+ * An implementation of NutrientLookup that searches in memory.
+ * [dummy visualizer for now]
+ */
 public class InMemNutrientLookUp implements NutrientLookup {
 
     private final Map<String, Map<NutrientType,Double>> data = new HashMap<>();
 
+    /**
+     * A dummy constructor for testing.
+     */
     public InMemNutrientLookUp() {
 
         EnumMap<NutrientType,Double>  map = new EnumMap<NutrientType,Double>(NutrientType.class);
