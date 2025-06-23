@@ -9,7 +9,7 @@ public enum CFGVersion {
      */
     V2007,
     /**
-     * The 2020 Canada's Food Guide.
+     * The 2019 Canada's Food Guide.
      */
-    V2020
+    V2019
 }

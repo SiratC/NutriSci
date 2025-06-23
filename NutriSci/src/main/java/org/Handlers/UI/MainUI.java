@@ -3,12 +3,9 @@ package org.Handlers.UI;
 import javax.swing.*;
 import java.awt.Component;
 import java.awt.FlowLayout;
-import java.util.List;
-import java.util.ArrayList;
-
-import java.awt.event.ActionEvent;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import org.Entity.*;
@@ -18,9 +15,11 @@ import org.Enums.NutrientType;
 import org.Handlers.Controller.ProfileManager;
 import org.Handlers.Database.ExerciseLog;
 import org.Handlers.Database.IntakeLog;
-import org.Handlers.Logic.NutrientAnalyzer;
+import org.Handlers.Logic.InMemNutrientLookUp;
+import org.Handlers.Logic.NutrientCalculator;
 import org.Handlers.Logic.SwapEngine;
 import org.Handlers.Visual.Visualizer;
+import org.jfree.chart.ChartPanel;
 
 /** Demonstrates Deliverable 1 features */
 public class MainUI {
@@ -34,35 +33,6 @@ public class MainUI {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(MainUI::setupGUI);
-
-        /*
-        // === ORIGINAL CONSOLE VERSION ===
-        ProfileManager pm = new ProfileManager();
-        UUID userId = UUID.randomUUID();
-        Profile profile = new Profile(userId, Sex.Female, LocalDate.of(1990, 1, 1), 165, 60, "metric");
-        pm.saveProfile(profile);
-        System.out.println("Saved profile: " + profile.getUserID());
-
-        IntakeLog intakeLog = new IntakeLog();
-        Meal breakfast = new Meal(LocalDate.now());
-        breakfast.addItem(new Food("Milk", 1));
-        breakfast.addItem(new Food("Bread", 2));
-        intakeLog.saveMeal(breakfast);
-        System.out.println("Logged meal items: " + breakfast.getItems().size());
-
-        ExerciseLog exerciseLog = new ExerciseLog();
-        Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));
-        exerciseLog.saveSession(run);
-        System.out.println("Logged exercise: " + run.getType());
-
-        NutrientAnalyzer analyzer = new NutrientAnalyzer();
-        int items = analyzer.analyze(intakeLog.fetchMealsByDate(LocalDate.now())).getTotalItems();
-        int exercises = exerciseLog.fetchSessionsByDate(LocalDate.now()).size();
-        Map<String, Integer> chartData = new HashMap<>();
-        chartData.put("Items Eaten", items);
-        chartData.put("Exercises", exercises);
-        Visualizer.showPie(chartData, "Today's Activity");
-        */
     }
 
     // === GUI Setup ===
@@ -92,13 +62,24 @@ public class MainUI {
     }
 
     private static void handleProfileCreation(Component parent) {
+
         UUID id = UUID.randomUUID();
-        currentUser = new Profile(id, Sex.Female, LocalDate.of(1990, 1, 1), 165, 60, "metric");
+
+        String name = JOptionPane.showInputDialog(parent, "Enter your name: ");
+        LocalDate dob = LocalDate.of(1990, 1, 1);
+        double height = 165;
+        double weight = 60;
+        String units = "metric";
+        LocalDateTime now = LocalDateTime.now();
+
+        currentUser = new Profile(id, name, Sex.Female, dob, height, weight, units, now, now);
+
         profileManager.saveProfile(currentUser);
-        JOptionPane.showMessageDialog(parent, "✅ Profile created for user: " + id);
+
+        JOptionPane.showMessageDialog(parent, "Profile created for user: " + id);
     }
 
-    // === Meal Tab ===
+    // === Meal Tab with Visualizer ===
     private static JPanel buildMealTab() {
         JPanel panel = new JPanel(new FlowLayout());
         JButton mealBtn = new JButton("Log Sample Meal");
@@ -114,15 +95,36 @@ public class MainUI {
             return;
         }
 
+
         Meal meal = new Meal(LocalDate.now());
-        meal.addItem(new Food("Milk", 1));
-        meal.addItem(new Food("Bread", 2));
+        meal.addItem(new Food("Test", 1));
         intakeLog.saveMeal(meal);
 
         Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));
         exerciseLog.saveSession(run);
 
-        JOptionPane.showMessageDialog(parent, "✅ Meal and exercise logged.");
+
+        NutrientCalculator calc = new NutrientCalculator(new InMemNutrientLookUp());
+        Map<NutrientType, Double> nutMap = calc.calculate(meal);
+
+
+        Map<String, Double> stringMap = new HashMap<>();
+        for (var entry : nutMap.entrySet()) {
+            if (entry.getValue() > 0) {
+                stringMap.put(entry.getKey().name(), entry.getValue());
+            }
+        }
+
+
+        ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal Nutrient Breakdown");
+        JFrame chartFrame = new JFrame("Nutrient Pie Chart");
+        chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        chartFrame.add(chartPanel);
+        chartFrame.pack();
+        chartFrame.setLocationRelativeTo(parent);
+        chartFrame.setVisible(true);
+
+        JOptionPane.showMessageDialog(parent, "The meal and exercise are logged.");
     }
 
     // === Swap Tab ===
@@ -149,17 +151,15 @@ public class MainUI {
             return;
         }
 
-        SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2020);
+        SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2019);
         List<Meal> swapped = swapEngine.applySwap(meals, request);
         intakeLog.updateMeals(swapped);
 
-        JOptionPane.showMessageDialog(parent, "✅ Swaps applied to " + swapped.size() + " meals.");
+        JOptionPane.showMessageDialog(parent, "Swaps applied to " + swapped.size() + " meals.");
     }
 
     // === Utility ===
     private static void showError(Component parent, String msg) {
         JOptionPane.showMessageDialog(parent, "⚠ " + msg, "Error", JOptionPane.ERROR_MESSAGE);
     }
-
 }
-
