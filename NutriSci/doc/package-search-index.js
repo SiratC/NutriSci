@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"org.Dao"},{"l":"org.Entity"},{"l":"org.Enums"},{"l":"org.Handlers.Controller"},{"l":"org.Handlers.Database"},{"l":"org.Handlers.Logic"},{"l":"org.Handlers.UI"},{"l":"org.Handlers.Visual"}];updateSearchResults();
