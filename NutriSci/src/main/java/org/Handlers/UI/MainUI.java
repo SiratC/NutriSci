@@ -32,7 +32,6 @@ public class MainUI {
     private static final Map<String, Profile> mockUserDB = new HashMap<>();
 
     public static void main(String[] args) {
-
         SwingUtilities.invokeLater(MainUI::setupGUI);
     }
 
@@ -47,9 +46,9 @@ public class MainUI {
         tabs.addTab("Profile", buildProfileTab());
         tabs.addTab("Meals", buildMealTab());
         tabs.addTab("Swaps", buildSwapTab());
-
         tabs.addTab("Analysis", buildAnalysisTab());
-        tabs.setEnabled(false); // lock until login
+        tabs.addTab("Register", buildRegisterTab());
+        tabs.setEnabled(false);
 
         showLoginScreen(frame, tabs);
         frame.add(tabs);
@@ -86,11 +85,11 @@ public class MainUI {
                 }
                 currentUser = existing;
             } else {
-                // Register new profile
                 UUID id = UUID.randomUUID();
                 currentUser = new Profile(id, username, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70, "metric", LocalDateTime.now(), LocalDateTime.now());
                 currentUser.setPassword(password);
                 mockUserDB.put(username, currentUser);
+                profileManager.saveProfile(currentUser);
             }
 
             JOptionPane.showMessageDialog(frame, "Welcome, " + currentUser.getName());
@@ -100,12 +99,44 @@ public class MainUI {
         }
     }
 
+    private static JPanel buildRegisterTab() {
+        JPanel panel = new JPanel(new FlowLayout());
+        JButton registerBtn = new JButton("Register");
+        registerBtn.addActionListener(e -> handleRegister(panel));
+        panel.add(registerBtn);
+        return panel;
+    }
+
+    private static void handleRegister(Component parent) {
+        String username = JOptionPane.showInputDialog(parent, "Enter your name:");
+        String password = JOptionPane.showInputDialog(parent, "Enter a password:");
+
+        if (username == null || password == null || username.isBlank() || password.isBlank()) {
+            showError(parent, "Name and password must not be empty.");
+            return;
+        }
+
+        if (mockUserDB.containsKey(username)) {
+            showError(parent, "User already exists.");
+            return;
+        }
+
+        UUID id = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now();
+        Profile profile = new Profile(id, username, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70, "metric", now, now);
+        profile.setPassword(password);
+
+        mockUserDB.put(username, profile);
+        profileManager.saveProfile(profile);
+
+        JOptionPane.showMessageDialog(parent, "Registered profile for: " + username + "\nYou can now log in.");
+    }
+
     private static JPanel buildProfileTab() {
         JPanel panel = new JPanel(new FlowLayout());
         JButton infoBtn = new JButton("View Profile Info");
         infoBtn.addActionListener(e -> JOptionPane.showMessageDialog(panel, currentUser.toString()));
         panel.add(infoBtn);
-
         return panel;
     }
 
@@ -114,14 +145,12 @@ public class MainUI {
         JButton mealBtn = new JButton("Log Sample Meal");
         mealBtn.addActionListener(e -> handleMealLogging(panel));
         panel.add(mealBtn);
-
         return panel;
     }
 
     private static void handleMealLogging(Component parent) {
         if (currentUser == null) {
             showError(parent, "Please log in first.");
-
             return;
         }
 
@@ -158,14 +187,12 @@ public class MainUI {
         JButton swapBtn = new JButton("Apply Swap (Fiber / CFG 2020)");
         swapBtn.addActionListener(e -> handleSwapLogic(panel));
         panel.add(swapBtn);
-
         return panel;
     }
 
     private static void handleSwapLogic(Component parent) {
         if (currentUser == null) {
             showError(parent, "Please log in first.");
-
             return;
         }
 
@@ -174,7 +201,6 @@ public class MainUI {
 
         if (meals == null || meals.isEmpty()) {
             showError(parent, "No meals found to swap.");
-
             return;
         }
 
@@ -230,7 +256,6 @@ public class MainUI {
     }
 
     private static void showError(Component parent, String msg) {
-
         JOptionPane.showMessageDialog(parent, "⚠ " + msg, "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
