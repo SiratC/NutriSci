@@ -36,6 +36,12 @@ public class ProfileManager {
     store.remove(userID);
   }
 
+  public boolean authenticate(UUID userID, String password) {
+    Profile profile = store.get(userID);
+    return profile != null && password != null && password.equals(profile.getPassword());
+  }
+
 }
+
 
 
