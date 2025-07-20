@@ -10,6 +10,7 @@ import java.util.List;
 import org.Entity.*;
 import org.Enums.*;
 import org.Handlers.Controller.ProfileManager;
+import org.Handlers.Database.DataLoader;
 import org.Handlers.Database.ExerciseLog;
 import org.Handlers.Database.IntakeLog;
 import org.Handlers.Logic.*;
@@ -32,7 +33,17 @@ public class MainUI {
     private static final Map<String, Profile> mockUserDB = new HashMap<>();
 
     public static void main(String[] args) {
+        loadFoodData();
         SwingUtilities.invokeLater(MainUI::setupGUI);
+    }
+
+    private static void loadFoodData() {
+        try {
+            new DataLoader().loadAll();
+            System.out.println("Loading of food items and nutrient amounts complete!");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static void setupGUI() {
