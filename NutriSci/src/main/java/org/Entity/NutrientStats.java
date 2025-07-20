@@ -74,12 +74,8 @@ public class NutrientStats {
 
     @Override
     public String toString() {
-        return "NutrientStats [" +
-                "totalItems=" + totalItems +
-                ", topNutrients=" + topNutrients +
-                ", otherPercentage=" + otherPercentage +
-                ", nutrientPercentages=" + nutrientPercentages +
-                ']';
+
+        return "NutrientStats [" + "totalItems=" + totalItems + ", topNutrients=" + topNutrients + ", otherPercentage=" + otherPercentage + ", nutrientPercentages=" + nutrientPercentages + ']';
     }
 }
 

@@ -21,11 +21,9 @@ public class MainUI {
     private static final IntakeLog intakeLog = new IntakeLog();
     private static final ExerciseLog exerciseLog = new ExerciseLog();
     private static final SwapEngine swapEngine = new SwapEngine();
-    private static final FoodGroupAnalyzer fgAnalyzer = new FoodGroupAnalyzer();
-    private static final CFGComparer cfgComparer = new CFGComparer();
-    private static final NutrientAnalyzer nutrientAnalyzer = new NutrientAnalyzer();
-    private static final TrendAnalyzer trendAnalyzer = new TrendAnalyzer();
     private static final SwapTracker swapTracker = new SwapTracker();
+    private static final CFGComparer cfgComparer = new CFGComparer();
+    private static final AnalyzerFactory analyzerFactory = new AnalyzerFactory();
 
     private static Profile currentUser;
     private static final Map<String, Profile> mockUserDB = new HashMap<>();
@@ -58,6 +56,7 @@ public class MainUI {
             tabs.setEnabledAt(i, false);
         }
         mainFrame.add(tabs);
+
         mainFrame.setVisible(true);
     }
 
@@ -90,6 +89,7 @@ public class MainUI {
         panel.add(registerButton, gbc);
 
         loginButton.addActionListener(e -> {
+
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword()).trim();
 
@@ -105,20 +105,22 @@ public class MainUI {
             if (existing != null) {
 
                 if (!existing.getPassword().equals(password)) {
+
                     showError(panel, "Incorrect password.");
 
                     return;
                 }
                 currentUser = existing;
-
                 JOptionPane.showMessageDialog(panel, "Welcome, " + currentUser.getName());
+
                 for (int i = 2; i < tabs.getTabCount(); i++) {
 
                     tabs.setEnabledAt(i, true);
                 }
                 tabs.setSelectedIndex(2);
+            }
 
-            } else {
+            else {
 
                 showError(panel, "User not registered. Please register first.");
             }
@@ -130,7 +132,6 @@ public class MainUI {
     }
 
     private static JPanel buildRegisterTab() {
-
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
@@ -156,27 +157,21 @@ public class MainUI {
         panel.add(registerButton, gbc);
 
         registerButton.addActionListener(e -> {
-
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword()).trim();
 
             if (username.isEmpty() || password.isEmpty()) {
-
                 showError(panel, "Username and password must not be empty.");
-
                 return;
             }
 
             if (mockUserDB.containsKey(username)) {
-
                 showError(panel, "User already exists.");
                 return;
             }
 
             UUID id = UUID.randomUUID();
-
             LocalDateTime now = LocalDateTime.now();
-
             Profile profile = new Profile(id, username, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70, "metric", now, now);
             profile.setPassword(password);
 
@@ -190,12 +185,10 @@ public class MainUI {
     }
 
     private static JPanel buildProfileTab() {
-
         JPanel panel = new JPanel(new FlowLayout());
         JButton infoBtn = new JButton("View Profile Info");
         infoBtn.addActionListener(e -> JOptionPane.showMessageDialog(panel, currentUser.toString()));
         panel.add(infoBtn);
-
         return panel;
     }
 
@@ -212,13 +205,12 @@ public class MainUI {
     private static void handleMealLogging(Component parent) {
 
         if (currentUser == null) {
-            showError(parent, "Please log in first.");
 
+            showError(parent, "Please log in first.");
             return;
         }
 
         Meal meal = new Meal(LocalDate.now());
-
         meal.addItem(new Food("Test", 1, 100));
         intakeLog.saveMeal(currentUser.getUserID(), meal);
 
@@ -238,6 +230,7 @@ public class MainUI {
         }
 
         ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal Nutrient Breakdown");
+
         JFrame chartFrame = new JFrame("Nutrient Pie Chart");
         chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         chartFrame.add(chartPanel);
@@ -261,6 +254,7 @@ public class MainUI {
     private static void handleSwapLogic(Component parent) {
 
         if (currentUser == null) {
+
             showError(parent, "Please log in first.");
 
             return;
@@ -289,34 +283,52 @@ public class MainUI {
         JPanel panel = new JPanel(new GridLayout(6, 1));
 
         JButton btnTrend = new JButton("Run TrendAnalyzer");
+
         JButton btnSwapTrack = new JButton("Run SwapTracker");
+
         JButton btnFG = new JButton("Run FoodGroupAnalyzer");
+
         JButton btnCFG = new JButton("Run CFGComparer");
+
         JButton btnNutri = new JButton("Run NutrientAnalyzer");
 
         btnTrend.addActionListener(e -> {
-            TrendResult result = trendAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, TrendResult> trend = analyzerFactory.createTrendAnalyzer();
+            TrendResult result = trend.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[TrendAnalyzer] Meals: " + result);
         });
 
         btnSwapTrack.addActionListener(e -> {
+
             NutrientChangeStats result = swapTracker.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[SwapTracker] Results: " + result);
         });
 
         btnFG.addActionListener(e -> {
-            FoodGroupStats result = fgAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
+            FoodGroupStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[FoodGroupAnalyzer] Results: " + result);
         });
 
         btnCFG.addActionListener(e -> {
-            FoodGroupStats stats = fgAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
+            FoodGroupStats stats = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
             AlignmentScore result = cfgComparer.analyze(stats, CFGVersion.V2019);
+
             System.out.println("[CFGComparer] Score: " + result);
         });
 
         btnNutri.addActionListener(e -> {
-            NutrientStats result = nutrientAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, NutrientStats> analyzer = analyzerFactory.createNutrientAnalyzer();
+            NutrientStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[NutrientAnalyzer] Top 3 Nutrients: " + result.getTopNutrients());
         });
 
@@ -330,6 +342,7 @@ public class MainUI {
     }
 
     private static void showError(Component parent, String msg) {
-        JOptionPane.showMessageDialog(parent, "⚠ " + msg, "Error", JOptionPane.ERROR_MESSAGE);
+
+        JOptionPane.showMessageDialog(parent, "Error:  " + msg, "", JOptionPane.ERROR_MESSAGE);
     }
 }
