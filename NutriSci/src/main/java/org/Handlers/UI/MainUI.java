@@ -330,6 +330,6 @@ public class MainUI {
     }
 
     private static void showError(Component parent, String msg) {
-        JOptionPane.showMessageDialog(parent, "⚠ " + msg, "Error", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(parent, "Error:  " + msg, "", JOptionPane.ERROR_MESSAGE);
     }
 }
