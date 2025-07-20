@@ -1,5 +1,4 @@
 package org.Handlers.UI;
-
 import javax.swing.*;
 import java.awt.*;
 import java.time.Duration;
@@ -23,14 +22,14 @@ public class MainUI {
     private static final IntakeLog intakeLog = new IntakeLog();
     private static final ExerciseLog exerciseLog = new ExerciseLog();
     private static final SwapEngine swapEngine = new SwapEngine();
-    private static final FoodGroupAnalyzer fgAnalyzer = new FoodGroupAnalyzer();
-    private static final CFGComparer cfgComparer = new CFGComparer();
-    private static final NutrientAnalyzer nutrientAnalyzer = new NutrientAnalyzer();
-    private static final TrendAnalyzer trendAnalyzer = new TrendAnalyzer();
     private static final SwapTracker swapTracker = new SwapTracker();
+    private static final CFGComparer cfgComparer = new CFGComparer();
+    private static final AnalyzerFactory analyzerFactory = new AnalyzerFactory();
 
     private static Profile currentUser;
     private static final Map<String, Profile> mockUserDB = new HashMap<>();
+    private static JFrame mainFrame;
+    private static JTabbedPane tabs;
 
     public static void main(String[] args) {
         loadFoodData();
@@ -47,100 +46,152 @@ public class MainUI {
     }
 
     private static void setupGUI() {
-        JFrame frame = new JFrame("NutriSci");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(850, 600);
-        frame.setLocationRelativeTo(null);
 
-        JTabbedPane tabs = new JTabbedPane();
+        mainFrame = new JFrame("NutriSci");
+        mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        mainFrame.setSize(850, 600);
+        mainFrame.setLocationRelativeTo(null);
 
+        tabs = new JTabbedPane();
+
+        tabs.addTab("Login", buildLoginTab());
+        tabs.addTab("Register", buildRegisterTab());
         tabs.addTab("Profile", buildProfileTab());
         tabs.addTab("Meals", buildMealTab());
         tabs.addTab("Swaps", buildSwapTab());
         tabs.addTab("Analysis", buildAnalysisTab());
-        tabs.addTab("Register", buildRegisterTab());
-        tabs.setEnabled(false);
 
-        showLoginScreen(frame, tabs);
-        frame.add(tabs);
-        frame.setVisible(true);
+        for (int i = 2; i < tabs.getTabCount(); i++) {
+
+            tabs.setEnabledAt(i, false);
+        }
+        mainFrame.add(tabs);
+
+        mainFrame.setVisible(true);
     }
 
-    private static void showLoginScreen(JFrame frame, JTabbedPane tabs) {
-        JPanel loginPanel = new JPanel(new GridLayout(3, 2));
-        JTextField usernameField = new JTextField();
-        JPasswordField passwordField = new JPasswordField();
+    private static JPanel buildLoginTab() {
 
-        loginPanel.add(new JLabel("Username:"));
-        loginPanel.add(usernameField);
-        loginPanel.add(new JLabel("Password:"));
-        loginPanel.add(passwordField);
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        int result = JOptionPane.showConfirmDialog(frame, loginPanel, "NutriSci Login", JOptionPane.OK_CANCEL_OPTION);
+        JTextField usernameField = new JTextField(12);
+        JPasswordField passwordField = new JPasswordField(12);
+        JButton loginButton = new JButton("Login");
+        JButton registerButton = new JButton("Register");
 
-        if (result == JOptionPane.OK_OPTION) {
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel("Username:"), gbc);
+        gbc.gridx = 1;
+        panel.add(usernameField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(new JLabel("Password:"), gbc);
+        gbc.gridx = 1;
+        panel.add(passwordField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        panel.add(loginButton, gbc);
+        gbc.gridx = 1;
+        panel.add(registerButton, gbc);
+
+        loginButton.addActionListener(e -> {
+
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword()).trim();
 
             if (username.isEmpty() || password.isEmpty()) {
-                showError(frame, "Username and password cannot be empty.");
-                System.exit(0);
+
+                showError(panel, "Username and password cannot be empty.");
+
+                return;
             }
 
             Profile existing = mockUserDB.get(username);
 
             if (existing != null) {
+
                 if (!existing.getPassword().equals(password)) {
-                    showError(frame, "Incorrect password.");
-                    System.exit(0);
+
+                    showError(panel, "Incorrect password.");
+
+                    return;
                 }
                 currentUser = existing;
-            } else {
-                UUID id = UUID.randomUUID();
-                currentUser = new Profile(id, username, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70, "metric", LocalDateTime.now(), LocalDateTime.now());
-                currentUser.setPassword(password);
-                mockUserDB.put(username, currentUser);
-                profileManager.saveProfile(currentUser);
+                JOptionPane.showMessageDialog(panel, "Welcome, " + currentUser.getName());
+
+                for (int i = 2; i < tabs.getTabCount(); i++) {
+
+                    tabs.setEnabledAt(i, true);
+                }
+                tabs.setSelectedIndex(2);
             }
 
-            JOptionPane.showMessageDialog(frame, "Welcome, " + currentUser.getName());
-            tabs.setEnabled(true);
-        } else {
-            System.exit(0);
-        }
-    }
+            else {
 
-    private static JPanel buildRegisterTab() {
-        JPanel panel = new JPanel(new FlowLayout());
-        JButton registerBtn = new JButton("Register");
-        registerBtn.addActionListener(e -> handleRegister(panel));
-        panel.add(registerBtn);
+                showError(panel, "User not registered. Please register first.");
+            }
+        });
+
+        registerButton.addActionListener(e -> tabs.setSelectedIndex(1));
+
         return panel;
     }
 
-    private static void handleRegister(Component parent) {
-        String username = JOptionPane.showInputDialog(parent, "Enter your name:");
-        String password = JOptionPane.showInputDialog(parent, "Enter a password:");
+    private static JPanel buildRegisterTab() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        if (username == null || password == null || username.isBlank() || password.isBlank()) {
-            showError(parent, "Name and password must not be empty.");
-            return;
-        }
+        JTextField usernameField = new JTextField(12);
+        JPasswordField passwordField = new JPasswordField(12);
+        JButton registerButton = new JButton("Register");
 
-        if (mockUserDB.containsKey(username)) {
-            showError(parent, "User already exists.");
-            return;
-        }
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel("Username:"), gbc);
+        gbc.gridx = 1;
+        panel.add(usernameField, gbc);
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(new JLabel("Password:"), gbc);
+        gbc.gridx = 1;
+        panel.add(passwordField, gbc);
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
+        panel.add(registerButton, gbc);
 
-        UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
-        Profile profile = new Profile(id, username, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70, "metric", now, now);
-        profile.setPassword(password);
+        registerButton.addActionListener(e -> {
+            String username = usernameField.getText().trim();
+            String password = new String(passwordField.getPassword()).trim();
 
-        mockUserDB.put(username, profile);
-        profileManager.saveProfile(profile);
+            if (username.isEmpty() || password.isEmpty()) {
+                showError(panel, "Username and password must not be empty.");
+                return;
+            }
 
-        JOptionPane.showMessageDialog(parent, "Registered profile for: " + username + "\nYou can now log in.");
+            if (mockUserDB.containsKey(username)) {
+                showError(panel, "User already exists.");
+                return;
+            }
+
+            UUID id = UUID.randomUUID();
+            LocalDateTime now = LocalDateTime.now();
+            Profile profile = new Profile(id, username, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70, "metric", now, now);
+            profile.setPassword(password);
+
+            mockUserDB.put(username, profile);
+            profileManager.saveProfile(profile);
+
+            JOptionPane.showMessageDialog(panel, "Registered profile for: " + username + "\nYou can now log in.");
+        });
+
+        return panel;
     }
 
     private static JPanel buildProfileTab() {
@@ -152,15 +203,19 @@ public class MainUI {
     }
 
     private static JPanel buildMealTab() {
+
         JPanel panel = new JPanel(new FlowLayout());
         JButton mealBtn = new JButton("Log Sample Meal");
         mealBtn.addActionListener(e -> handleMealLogging(panel));
         panel.add(mealBtn);
+
         return panel;
     }
 
     private static void handleMealLogging(Component parent) {
+
         if (currentUser == null) {
+
             showError(parent, "Please log in first.");
             return;
         }
@@ -176,13 +231,16 @@ public class MainUI {
         Map<NutrientType, Double> nutMap = calc.calculate(meal);
 
         Map<String, Double> stringMap = new HashMap<>();
+
         for (Map.Entry<NutrientType, Double> entry : nutMap.entrySet()) {
+
             if (entry.getValue() > 0) {
                 stringMap.put(entry.getKey().name(), entry.getValue());
             }
         }
 
         ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal Nutrient Breakdown");
+
         JFrame chartFrame = new JFrame("Nutrient Pie Chart");
         chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         chartFrame.add(chartPanel);
@@ -194,24 +252,32 @@ public class MainUI {
     }
 
     private static JPanel buildSwapTab() {
+
         JPanel panel = new JPanel(new FlowLayout());
         JButton swapBtn = new JButton("Apply Swap (Fiber / CFG 2020)");
         swapBtn.addActionListener(e -> handleSwapLogic(panel));
         panel.add(swapBtn);
+
         return panel;
     }
 
     private static void handleSwapLogic(Component parent) {
+
         if (currentUser == null) {
+
             showError(parent, "Please log in first.");
+
             return;
         }
 
         DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+
         List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), range);
 
         if (meals == null || meals.isEmpty()) {
+
             showError(parent, "No meals found to swap.");
+
             return;
         }
 
@@ -223,37 +289,56 @@ public class MainUI {
     }
 
     private static JPanel buildAnalysisTab() {
+
         JPanel panel = new JPanel(new GridLayout(6, 1));
 
         JButton btnTrend = new JButton("Run TrendAnalyzer");
+
         JButton btnSwapTrack = new JButton("Run SwapTracker");
+
         JButton btnFG = new JButton("Run FoodGroupAnalyzer");
+
         JButton btnCFG = new JButton("Run CFGComparer");
+
         JButton btnNutri = new JButton("Run NutrientAnalyzer");
 
         btnTrend.addActionListener(e -> {
-            TrendResult result = trendAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, TrendResult> trend = analyzerFactory.createTrendAnalyzer();
+            TrendResult result = trend.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[TrendAnalyzer] Meals: " + result);
         });
 
         btnSwapTrack.addActionListener(e -> {
+
             NutrientChangeStats result = swapTracker.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[SwapTracker] Results: " + result);
         });
 
         btnFG.addActionListener(e -> {
-            FoodGroupStats result = fgAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
+            FoodGroupStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[FoodGroupAnalyzer] Results: " + result);
         });
 
         btnCFG.addActionListener(e -> {
-            FoodGroupStats stats = fgAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
+            FoodGroupStats stats = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
             AlignmentScore result = cfgComparer.analyze(stats, CFGVersion.V2019);
+
             System.out.println("[CFGComparer] Score: " + result);
         });
 
         btnNutri.addActionListener(e -> {
-            NutrientStats result = nutrientAnalyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
+            Analyzer<List<Meal>, NutrientStats> analyzer = analyzerFactory.createNutrientAnalyzer();
+            NutrientStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
+
             System.out.println("[NutrientAnalyzer] Top 3 Nutrients: " + result.getTopNutrients());
         });
 
@@ -267,6 +352,9 @@ public class MainUI {
     }
 
     private static void showError(Component parent, String msg) {
-        JOptionPane.showMessageDialog(parent, "⚠ " + msg, "Error", JOptionPane.ERROR_MESSAGE);
+
+        JOptionPane.showMessageDialog(parent, "Error:  " + msg, "", JOptionPane.ERROR_MESSAGE);
     }
 }
+
+
