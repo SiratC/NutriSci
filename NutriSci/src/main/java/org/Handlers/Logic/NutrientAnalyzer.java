@@ -25,9 +25,9 @@ public class NutrientAnalyzer implements Analyzer<List<Meal>, NutrientStats> {
             }
         }
 
-        NutrientStats stats = new NutrientStats();
+        NutrientStats.NutrientStatsTemplate template = new NutrientStats.Top3Template();
+        NutrientStats stats = template.calculateStats(nutrientSums);
         stats.setTotalItems(totalItems);
-        stats.setStats(nutrientSums);
 
         return stats;
     }
