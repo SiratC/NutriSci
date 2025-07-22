@@ -1,27 +1,21 @@
 package org.Handlers.Logic;
-
 import org.Entity.Food;
 import org.Entity.FoodGroupStats;
 import org.Entity.Meal;
 import org.Enums.FoodGroup;
-
 import java.util.*;
 
-public class FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
+public class
+FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
 
     @Override
     public FoodGroupStats analyze(List<Meal> meals) {
-
         Map<FoodGroup, Double> groupSums = new EnumMap<>(FoodGroup.class);
-
         double totalCalories = 0.0;
 
         for (Meal meal : meals) {
-
             for (Food food : meal.getItems()) {
-
                 FoodGroup group = guessGroup(food);
-
                 double cal = food.getCalories();
                 groupSums.merge(group, cal, Double::sum);
                 totalCalories += cal;
@@ -29,11 +23,8 @@ public class FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
         }
 
         Map<FoodGroup, Double> percentages = new EnumMap<>(FoodGroup.class);
-
         for (var entry : groupSums.entrySet()) {
-
             double percent = (totalCalories > 0) ? (entry.getValue() / totalCalories) * 100.0 : 0.0;
-
             percentages.put(entry.getKey(), percent);
         }
 
@@ -43,7 +34,6 @@ public class FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
     }
 
     private FoodGroup guessGroup(Food food) {
-
         String name = food.getName().toLowerCase();
 
         if (name.contains("bread") || name.contains("rice") || name.contains("oat"))
@@ -63,4 +53,11 @@ public class FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
 
         return FoodGroup.Other;
     }
+
+    public void update(String action, UUID userId, List<Meal> meals) {
+        
+        System.out.println("[FoodGroupAnalyzer] update triggered: " + action + " for user " + userId);
+    }
 }
+
+
