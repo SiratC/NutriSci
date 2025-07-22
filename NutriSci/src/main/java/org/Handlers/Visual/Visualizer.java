@@ -123,4 +123,10 @@ public class Visualizer {
         return ChartFactory.createPieChart(title, dataset, true, true, false);
     }
 
+        public void update(String action, UUID userId, List<Meal> meals) {
+            
+        //  temp stub; actual visualizer update logic later
+        System.out.println("[Visualizer] update triggered: " + action + " for user " + userId);
+    }
+
 }
