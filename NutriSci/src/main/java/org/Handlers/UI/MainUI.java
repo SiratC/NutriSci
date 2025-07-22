@@ -192,6 +192,8 @@ public class MainUI {
             profileManager.saveProfile(profile);
 
             JOptionPane.showMessageDialog(panel, "Registered profile for: " + username + "\nYou can now log in.");
+            tabs.setSelectedIndex(0); 
+
         });
 
         return panel;
