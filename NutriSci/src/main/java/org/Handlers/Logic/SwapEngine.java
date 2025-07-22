@@ -25,11 +25,11 @@ public class SwapEngine {
             Meal.Builder builder = new Meal.Builder().withDate(meal.getDate());
 
             for (Food food : meal.getItems()) {
-                // Determine nutrient contribution (estimation based on dummy or later real DAO lookup)
+                // determines nutrient contribution
                 Map<NutrientType, Double> foodNutrients = food.getNutrients();
                 double targetValue = foodNutrients.getOrDefault(target, 0.0);
 
-                // Swap decision: if nutrient contribution is low, try to swap
+                // checks if nutrient contribution is low; try to swap
                 if (targetValue < 5.0) {
                     Optional<Food> better = findBetterSwap(food, target);
                     builder.add(better.orElse(food)); // if better swap found, use it
