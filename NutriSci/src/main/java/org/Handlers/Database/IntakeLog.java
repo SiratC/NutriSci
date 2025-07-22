@@ -57,4 +57,13 @@ public class IntakeLog {
     public void add(UUID userId, Meal meal) {
         saveMeal(userId, meal);
     }
+
+    public void remove(UUID userId, Meal meal) {
+        List<Meal> meals = userMeals.get(userId);
+        if (meals != null) {
+            meals.remove(meal);
+        }
+    }
+
 }
+
