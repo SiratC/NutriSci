@@ -2,13 +2,13 @@ package org.Handlers.Logic;
 
 import org.Entity.*;
 import org.Enums.NutrientType;
+
 import java.time.LocalDate;
 import java.util.*;
 
 public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
 
     private final NutrientCalculator calculator = new NutrientCalculator(new DatabaseNutrientLookup());
-
 
     @Override
     public TrendResult analyze(List<Meal> meals) {
@@ -50,4 +50,11 @@ public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
 
         return result;
     }
+
+    public void update(String action, UUID userId, List<Meal> meals) {
+        
+        // stub for observer compatibility
+        System.out.println("[TrendAnalyzer] update triggered: " + action + " for user " + userId);
+    }
 }
+
