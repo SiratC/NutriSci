@@ -3,6 +3,8 @@ package org.Handlers.Database;
 import org.Entity.FoodName;
 import org.Dao.FoodNameDAO;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatabaseFoodNameDAO implements FoodNameDAO {
     @Override
@@ -26,5 +28,25 @@ public class DatabaseFoodNameDAO implements FoodNameDAO {
                 return rs.next() ? rs.getString("foodDescription") : null;
             }
         }
+    }
+
+    @Override
+    public List<FoodName> getAllFoodNames() {
+        List<FoodName> result = new ArrayList<>();
+        String sql = "SELECT * FROM foodname";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                int id = rs.getInt("foodid");
+                String desc = rs.getString("fooddescription");
+                result.add(new FoodName(id, desc));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return result;
     }
 }

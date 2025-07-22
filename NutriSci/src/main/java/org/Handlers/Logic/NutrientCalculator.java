@@ -18,20 +18,25 @@ public class NutrientCalculator {
     public Map<NutrientType, Double> calculate(Meal meal) {
 
         Map<NutrientType, Double> totals = new EnumMap<>(NutrientType.class);
+
         for (NutrientType t : NutrientType.values()) {
+
             totals.put(t, 0.0);
         }
 
         for (Food f : meal.getItems()) {
 
-            var perUnit = lookup.getPerUnit(f.getName());
+            Map<NutrientType, Double> perUnit = lookup.getPerUnit(f.getFoodID());
 
-            for (var t : NutrientType.values()) {
-                totals.put(t, totals.get(t) + perUnit.get(t) * f.getQuantity());
+            for (NutrientType t : NutrientType.values()) {
+
+                double updated = totals.get(t) + perUnit.getOrDefault(t, 0.0) * f.getQuantity();
+
+                totals.put(t, updated);
             }
-
         }
 
         return totals;
     }
+
 }

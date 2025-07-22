@@ -10,4 +10,10 @@ public class FoodName {
     }
     public int getFoodId() { return foodId; }
     public String getFoodDescription() { return foodDescription; }
+
+    @Override
+    public String toString() {
+
+        return foodDescription;
+    }
 }

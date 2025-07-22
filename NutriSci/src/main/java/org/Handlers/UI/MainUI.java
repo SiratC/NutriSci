@@ -6,10 +6,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.List;
+
+import org.Dao.FoodNameDAO;
 import org.Entity.*;
 import org.Enums.*;
 import org.Handlers.Controller.ProfileManager;
 import org.Handlers.Database.DataLoader;
+import org.Handlers.Database.DatabaseFoodNameDAO;
 import org.Handlers.Database.ExerciseLog;
 import org.Handlers.Database.IntakeLog;
 import org.Handlers.Logic.*;
@@ -205,9 +208,52 @@ public class MainUI {
     private static JPanel buildMealTab() {
 
         JPanel panel = new JPanel(new FlowLayout());
-        JButton mealBtn = new JButton("Log Sample Meal");
-        mealBtn.addActionListener(e -> handleMealLogging(panel));
-        panel.add(mealBtn);
+
+        JComboBox<FoodName> foodDropdown = new JComboBox<>();
+
+        JButton logButton = new JButton("Log Selected Food");
+
+        try {
+
+            FoodNameDAO foodDao = new DatabaseFoodNameDAO();
+            List<FoodName> foods = foodDao.getAllFoodNames();
+            if (foods.isEmpty()) {
+                System.out.println("No foods found.");
+            } else {
+                for (FoodName f : foods) {
+                    foodDropdown.addItem(f);
+                }
+            }
+        }
+        catch (Exception e) {
+
+            e.printStackTrace();
+            showError(panel, "Failed to load food list.");
+        }
+
+        logButton.addActionListener(e -> {
+            if (currentUser == null) {
+                showError(panel, "Please log in first.");
+                return;
+            }
+
+            FoodName selected = (FoodName) foodDropdown.getSelectedItem();
+            if (selected == null) {
+                showError(panel, "No food selected.");
+                return;
+            }
+
+            Meal meal = new Meal(LocalDate.now());
+            meal.addItem( new Food(selected.getFoodId(), selected.getFoodDescription(), 1, 100));
+
+            intakeLog.saveMeal(currentUser.getUserID(), meal);
+
+            JOptionPane.showMessageDialog(panel, "Meal logged: " + selected.getFoodDescription());
+        });
+
+        panel.add(new JLabel("Select Food:"));
+        panel.add(foodDropdown);
+        panel.add(logButton);
 
         return panel;
     }
@@ -221,7 +267,7 @@ public class MainUI {
         }
 
         Meal meal = new Meal(LocalDate.now());
-        meal.addItem(new Food(1001, "Oatmeal", 1, 100));
+        meal.addItem(new Food(114, "Milk, fluid, skim", 1, 34));
         intakeLog.saveMeal(currentUser.getUserID(), meal);
 
         Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));

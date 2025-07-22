@@ -5,6 +5,7 @@ import org.Entity.FoodName;
 import org.Entity.NutrientName;
 import org.Entity.NutrientAmount;
 
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -24,6 +25,13 @@ public class DataLoader {
 
     private void loadFoodNames(String resource) throws Exception {
         FoodNameDAO foodDao = new DatabaseFoodNameDAO();
+
+        //debug
+        InputStream stream = getClass().getClassLoader().getResourceAsStream(resource);
+        if (stream == null) {
+            throw new RuntimeException("CSV file not found: " + resource);
+        }
+
         try (CSVReader reader = new CSVReader(new InputStreamReader(
                 getClass().getClassLoader().getResourceAsStream(resource)))) {
             reader.readNext(); // skip header
@@ -31,13 +39,24 @@ public class DataLoader {
             while ((line = reader.readNext()) != null) {
                 int id   = Integer.parseInt(line[0]);
                 String desc = line[1];
+
+                System.out.println("Inserting food: " + id + " - " + desc);     //debug
                 foodDao.insertFoodName(new FoodName(id, desc));
             }
         }
+
     }
 
     private void loadNutrientNames(String resource) throws Exception {
         NutrientNameDAO nnDao = new DatabaseNutrientNameDao();
+
+        //debug
+        InputStream stream = getClass().getClassLoader().getResourceAsStream(resource);
+
+        if (stream == null) {
+            throw new RuntimeException("CSV file not found: " + resource);
+        }
+
         try (CSVReader reader = new CSVReader(new InputStreamReader(
                 getClass().getClassLoader().getResourceAsStream(resource)))) {
             reader.readNext(); // skip header
@@ -55,6 +74,15 @@ public class DataLoader {
 
     private void loadNutrientAmounts(String resource) throws Exception {
         NutrientAmountDAO nutrDao = new DatabaseNutrientAmountDAO();
+
+        //debug
+        InputStream stream = getClass().getClassLoader().getResourceAsStream(resource);
+
+        if (stream == null) {
+
+            throw new RuntimeException("CSV file not found: " + resource);
+        }
+
         try (CSVReader reader = new CSVReader(new InputStreamReader(
                 getClass().getClassLoader().getResourceAsStream(resource)))) {
             reader.readNext(); // skip header
