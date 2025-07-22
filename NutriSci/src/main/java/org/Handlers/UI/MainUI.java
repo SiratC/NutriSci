@@ -16,8 +16,10 @@ import org.Handlers.Database.DatabaseFoodNameDAO;
 import org.Handlers.Database.ExerciseLog;
 import org.Handlers.Database.IntakeLog;
 import org.Handlers.Logic.*;
+import org.Handlers.Visual.TrendChartFactory;
 import org.Handlers.Visual.Visualizer;
 import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
 
 public class MainUI {
 
@@ -192,7 +194,7 @@ public class MainUI {
             profileManager.saveProfile(profile);
 
             JOptionPane.showMessageDialog(panel, "Registered profile for: " + username + "\nYou can now log in.");
-            tabs.setSelectedIndex(0); 
+            tabs.setSelectedIndex(0);
 
         });
 
@@ -353,11 +355,32 @@ public class MainUI {
 
         btnTrend.addActionListener(e -> {
 
-            Analyzer<List<Meal>, TrendResult> trend = analyzerFactory.createTrendAnalyzer();
-            TrendResult result = trend.analyze(intakeLog.getAll(currentUser.getUserID()));
+            Analyzer<List<Meal>, TrendResult> trendAnalyzer = analyzerFactory.createTrendAnalyzer();
 
+            List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
+
+            if (meals == null || meals.isEmpty()) {
+
+                showError(panel, "No meals found for analysis.");
+
+                return;
+            }
+
+            TrendResult result = trendAnalyzer.analyze(meals);
             System.out.println("[TrendAnalyzer] Meals: " + result);
+
+            JFreeChart chart = TrendChartFactory.createTrendChart(result);
+            ChartPanel chartPanel = new ChartPanel(chart);
+
+            JFrame chartFrame = new JFrame("Trend Analysis Chart");
+
+            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            chartFrame.add(chartPanel);
+            chartFrame.pack();
+            chartFrame.setLocationRelativeTo(null);
+            chartFrame.setVisible(true);
         });
+
 
         btnSwapTrack.addActionListener(e -> {
 

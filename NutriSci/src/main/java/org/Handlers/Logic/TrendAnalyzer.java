@@ -1,8 +1,6 @@
 package org.Handlers.Logic;
-
 import org.Entity.*;
 import org.Enums.NutrientType;
-
 import java.time.LocalDate;
 import java.util.*;
 
@@ -42,17 +40,20 @@ public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
         }
 
         TrendResult result = new TrendResult();
+        result.setPerDayStats(perDayStats);
+
         List<NutrientStats> perMealStats = new ArrayList<>(perDayStats.values());
+        result.setPerMealStats(perMealStats);
 
         NutrientStats cumulative = template.calculateStats(totalMap);
-        result.setPerMealStats(perMealStats);
         result.setCumulativeStats(cumulative);
 
         return result;
     }
 
+
     public void update(String action, UUID userId, List<Meal> meals) {
-        
+
         // stub for observer compatibility
         System.out.println("[TrendAnalyzer] update triggered: " + action + " for user " + userId);
     }

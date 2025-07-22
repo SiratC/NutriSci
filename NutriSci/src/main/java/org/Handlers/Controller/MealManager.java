@@ -40,29 +40,9 @@ public class MealManager {
         return instance;
     }
 
-    private MealManager() {
-        addObserver((action, userId, meals) -> { visualizer.update(action, userId, meals); });
-        addObserver((action, userId, meals) -> { swapTracker.update(action, userId, meals); });
-        addObserver((action, userId, meals) -> { trendAnalyzer.update(action, userId, meals); });
-        addObserver((action, userId, meals) -> { nutrientAnalyzer.update(action, userId, meals); });
-        addObserver((action, userId, meals) -> { fgAnalyzer.update(action, userId, meals); });
-        addObserver((action, userId, meals) -> { cfgComparer.update(action, userId, meals); });
-    }
+    // private constructor to ensure Singleton pattern
+    private MealManager() {}
 
-    public void addObserver(MealObserver observer) {
-        observers.add(observer);
-    }
-
-    public void removeObserver(MealObserver observer) {
-        observers.remove(observer);
-    }
-
-    private void notifyObservers(String action, UUID userId, List<Meal> meals) {
-        for (MealObserver observer : observers) {
-            observer.update(action, userId, meals);
-        }
-    }
-    
     /**
      * logs a meal for the given user.
      */
@@ -150,12 +130,5 @@ public class MealManager {
         JFreeChart chart = Visualizer.createComparisonChart(chartData, "Swap Effect");
 
         return new SwapEffectReport(chart, difference);
-    }
-
-    
-    public void removeMeal(UUID userId, Meal meal) {
-        
-        log.remove(userId, meal);
-        notifyObservers("removeMeal", userId, Collections.singletonList(meal));
     }
 }

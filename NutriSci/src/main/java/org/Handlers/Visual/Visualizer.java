@@ -1,6 +1,7 @@
 package org.Handlers.Visual;
 
 
+import org.Entity.Meal;
 import org.Entity.NutrientChangeStats;
 import org.Entity.NutrientStats;
 import org.Entity.VisualizationOps;
@@ -9,10 +10,11 @@ import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.general.DefaultPieDataset;
-
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class Visualizer {
 
