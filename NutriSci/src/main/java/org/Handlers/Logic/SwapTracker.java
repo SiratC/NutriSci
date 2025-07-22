@@ -19,7 +19,6 @@ public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
         Map<LocalDate, List<Meal>> mealsByDate = new HashMap<>();
 
         for (Meal meal : meals) {
-
             mealsByDate.computeIfAbsent(meal.getDate(), d -> new ArrayList<>()).add(meal);
         }
 
@@ -32,17 +31,13 @@ public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
             Map<NutrientType, Double> dailyTotal = new EnumMap<>(NutrientType.class);
 
             for (Meal meal : dayMeals) {
-
                 Map<NutrientType, Double> mealValues = calculator.calculate(meal);
-
                 for (Map.Entry<NutrientType, Double> nutEntry : mealValues.entrySet()) {
-
                     dailyTotal.merge(nutEntry.getKey(), nutEntry.getValue(), Double::sum);
                 }
             }
 
             for (Map.Entry<NutrientType, Double> nutEntry : dailyTotal.entrySet()) {
-
                 changeStats.addChange(date, nutEntry.getKey(), nutEntry.getValue());
             }
         }
@@ -51,7 +46,14 @@ public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
     }
 
     public CFGDifference analyzeCFG(FoodGroupStats before, FoodGroupStats after) {
-
         return new CFGDifference(before, after);
     }
+
+    public void update(String action, UUID userId, List<Meal> meals) {
+        
+        // implement specific logic here later
+        System.out.println("[SwapTracker] update triggered: " + action + " for user " + userId);
+    }
 }
+
+
