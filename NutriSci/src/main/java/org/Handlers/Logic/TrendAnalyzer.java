@@ -7,7 +7,8 @@ import java.util.*;
 
 public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
 
-    private final NutrientCalculator calculator = new NutrientCalculator(new InMemNutrientLookUp());
+    private final NutrientCalculator calculator = new NutrientCalculator(new DatabaseNutrientLookup());
+
 
     @Override
     public TrendResult analyze(List<Meal> meals) {

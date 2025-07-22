@@ -221,13 +221,13 @@ public class MainUI {
         }
 
         Meal meal = new Meal(LocalDate.now());
-        meal.addItem(new Food("Test", 1, 100));
+        meal.addItem(new Food(1001, "Oatmeal", 1, 100));
         intakeLog.saveMeal(currentUser.getUserID(), meal);
 
         Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));
         exerciseLog.saveSession(run);
 
-        NutrientCalculator calc = new NutrientCalculator(new InMemNutrientLookUp());
+        NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
         Map<NutrientType, Double> nutMap = calc.calculate(meal);
 
         Map<String, Double> stringMap = new HashMap<>();
@@ -242,6 +242,7 @@ public class MainUI {
         ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal Nutrient Breakdown");
 
         JFrame chartFrame = new JFrame("Nutrient Pie Chart");
+
         chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         chartFrame.add(chartPanel);
         chartFrame.pack();

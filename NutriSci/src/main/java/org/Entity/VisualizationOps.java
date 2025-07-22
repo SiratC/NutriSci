@@ -14,12 +14,7 @@ public class VisualizationOps {
     private ChartType chartType;
     private boolean beforeAfter;
 
-    public VisualizationOps(DateRange dateRange,
-                            List<NutrientType> nutrients,
-                            int topCount,
-                            boolean includeOther,
-                            ChartType chartType,
-                            boolean beforeAfter) {
+    public VisualizationOps(DateRange dateRange, List<NutrientType> nutrients, int topCount, boolean includeOther, ChartType chartType, boolean beforeAfter) {
         this.dateRange = dateRange;
         this.nutrients = nutrients;
         this.topCount = topCount;

@@ -8,7 +8,7 @@ import java.util.*;
 
 public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
 
-    private final NutrientCalculator calculator = new NutrientCalculator(new InMemNutrientLookUp());
+    private final NutrientCalculator calculator = new NutrientCalculator(new DatabaseNutrientLookup());
 
     @Override
     public NutrientChangeStats analyze(List<Meal> meals) {

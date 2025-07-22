@@ -7,9 +7,9 @@ import java.util.Map;
 
 public class NutrientCalculator {
 
-    private final NutrientLookup lookup;
+    private final DatabaseNutrientLookup lookup;
 
-    public NutrientCalculator(NutrientLookup lookup) {
+    public NutrientCalculator(DatabaseNutrientLookup lookup) {
 
         this.lookup = lookup;
 
