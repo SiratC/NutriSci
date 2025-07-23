@@ -7,6 +7,9 @@ import org.Handlers.Database.DatabaseNutrientAmountDAO;
 import org.Handlers.Database.DatabaseNutrientNameDao;
 import java.util.*;
 
+/**
+ * Handles swaps within a meal.
+ */
 public class SwapEngine {
 
     private final NutrientAmountDAO nutrientAmountDAO = new DatabaseNutrientAmountDAO();
@@ -15,6 +18,13 @@ public class SwapEngine {
 
     private final FoodNameDAO foodNameDAO = new DatabaseFoodNameDAO();
 
+    /**
+     * Processes the swap of a food item within a meal.
+     *
+     * @param meals the list of food items
+     * @param request the food item to swap
+     * @return the changed list of food items including the swap
+     */
     public List<Meal> applySwap(List<Meal> meals, SwapRequest request) {
         NutrientType target = request.getTargetNutrient();
 
@@ -45,7 +55,10 @@ public class SwapEngine {
     }
 
     /**
-     * tries to find a better food (higher in target nutrient) from the DB
+     * Tries to find a better food (higher in target nutrient) from the DB.
+     * @param original the original food item
+     * @param targetNutrient the target nutrient to find
+     * @return the preferred food item
      */
 
     private Optional<Food> findBetterSwap(Food original, NutrientType targetNutrient) {

@@ -9,6 +9,9 @@ import java.util.List;
 
 import org.junit.jupiter.api.Assertions;
 
+/**
+ * Tester method for NutrientAnalyzer.
+ */
 public class NutrientAnalyzerTest {
     @Test
     void getTotalItemsTest1() { // no item

@@ -5,16 +5,30 @@ import org.Enums.NutrientType;
 import java.util.EnumMap;
 import java.util.Map;
 
+/**
+ * Handles the calculation and information of nutrients.
+ * <p>Used for looking up nutrients and calculating the given meal's nutrient content</p>
+ */
 public class NutrientCalculator {
 
     private final DatabaseNutrientLookup lookup;
 
+    /**
+     * NutrientCalculator constructor with a defined look up for the database
+     * @param lookup nutrient to look for
+     */
     public NutrientCalculator(DatabaseNutrientLookup lookup) {
 
         this.lookup = lookup;
 
     }
 
+    /**
+     * Calculates the nutrients within the meal given.
+     *
+     * @param meal the user's meal
+     * @return a map of nutrient types and nutrient amounts
+     */
     public Map<NutrientType, Double> calculate(Meal meal) {
 
         Map<NutrientType, Double> totals = new EnumMap<>(NutrientType.class);

@@ -4,6 +4,9 @@ import org.Enums.NutrientType;
 import java.time.LocalDate;
 import java.util.*;
 
+/**
+ * Implements {@link Analyzer} and handles the nutrient intake trends over time.
+ */
 public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
 
     private final NutrientCalculator calculator = new NutrientCalculator(new DatabaseNutrientLookup());
@@ -51,7 +54,13 @@ public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
         return result;
     }
 
-
+    /**
+     * Updates the trend analyzer due to action.
+     *
+     * @param action action causing change
+     * @param userId user's ID
+     * @param meals meal items
+     */
     public void update(String action, UUID userId, List<Meal> meals) {
 
         // stub for observer compatibility

@@ -4,6 +4,9 @@ import org.Enums.NutrientType;
 import java.util.EnumMap;
 import java.util.Map;
 
+/**
+ * Handles nutrient recommendations based off of the CFG and current meal to reach user goals.
+ */
 public class NutritionGuidelines {
 
     private final Map<NutrientType, Double> targets;
@@ -13,6 +16,12 @@ public class NutritionGuidelines {
         this.targets = targets;
     }
 
+    /**
+     * Returns nutrition guidelines based on given CFG version.
+     *
+     * @param version the version of the Canada's Food Guide
+     * @return the NutritionGuidelines based on given CFG
+     */
     public static NutritionGuidelines forVersion(CFGVersion version) {
 
         Map<NutrientType, Double> map = new EnumMap<>(NutrientType.class);
@@ -38,6 +47,12 @@ public class NutritionGuidelines {
         return new NutritionGuidelines(map);
     }
 
+    /**
+     * Returns the recommended percentage of nutrients for the meal.
+     *
+     * @param type the type of nutrient recommended
+     * @return the percentage of the nutrient
+     */
     public double getTargetPercentage(NutrientType type) {
 
         return targets.getOrDefault(type, 0.0);

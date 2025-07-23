@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Implementation database class of profiles.
+ */
 public class DatabaseProfileDAO implements ProfileDAO {
 
     @Override
@@ -311,6 +314,12 @@ public class DatabaseProfileDAO implements ProfileDAO {
         }
     }
 
+    /**
+     * Maps the profile using information of given result set.
+     * @param rs result set
+     * @return profile with data given
+     * @throws SQLException
+     */
     private Profile mapResultSetToProfile(ResultSet rs) throws SQLException {
         UUID userID = (UUID) rs.getObject("id");
         String name = rs.getString("name");

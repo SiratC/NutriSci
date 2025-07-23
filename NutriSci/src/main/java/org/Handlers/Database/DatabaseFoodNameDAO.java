@@ -6,6 +6,9 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Implementation database class for food names.
+ */
 public class DatabaseFoodNameDAO implements FoodNameDAO {
     @Override
     public void insertFoodName(FoodName food) throws SQLException {

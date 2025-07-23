@@ -7,6 +7,9 @@ import org.Enums.FoodGroup;
 
 import java.util.*;
 
+/**
+ * Implements {@link Analyzer} and handles the percentage of the food groups in the meal.
+ */
 public class FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
 
     @Override
@@ -42,6 +45,11 @@ public class FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
         return stats;
     }
 
+    /**
+     * Automatically guesses the food group based on food item name.
+     * @param food the food item
+     * @return estimated food group
+     */
     private FoodGroup guessGroup(Food food) {
 
         String name = food.getName().toLowerCase();

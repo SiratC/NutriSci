@@ -8,6 +8,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+/**
+ * Implementation database class for nutrient names.
+ */
 public class DatabaseNutrientNameDao implements NutrientNameDAO {
     @Override
     public void insertNutrientName(NutrientName nn) throws SQLException {

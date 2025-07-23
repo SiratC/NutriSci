@@ -9,8 +9,15 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import java.time.LocalDate;
 import java.util.Map;
 
+/**
+ * Factory method for {@link TrendResult}.
+ */
 public class TrendChartFactory {
-
+    /**
+     * Creates a new Trend Chart from Trend Result.
+     * @param trendResult result of trends
+     * @return chart
+     */
     public static JFreeChart createTrendChart(TrendResult trendResult) {
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();

@@ -21,6 +21,9 @@ import org.Handlers.Visual.Visualizer;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 
+/**
+ * Main UI class which handles the presentation of NutriSci.
+ */
 public class MainUI {
 
     private static final ProfileManager profileManager = ProfileManager.getInstance();

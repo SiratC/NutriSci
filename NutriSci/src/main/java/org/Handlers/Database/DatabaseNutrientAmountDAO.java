@@ -6,6 +6,9 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Implementation database class for nutrient amounts.
+ */
 public class DatabaseNutrientAmountDAO implements NutrientAmountDAO {
     @Override
     public void insertNutrientAmount(NutrientAmount na) throws SQLException {

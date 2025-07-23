@@ -6,6 +6,9 @@ import org.Entity.NutrientAmount;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of Nutrient Lookup using database information.
+ */
 public class DatabaseNutrientLookup implements NutrientLookup {
 
     private final NutrientAmountDAO dao = new DatabaseNutrientAmountDAO();

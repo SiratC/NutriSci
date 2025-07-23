@@ -12,6 +12,11 @@ import org.jfree.chart.JFreeChart;
 import java.time.LocalDate;
 import java.util.*;
 
+/**
+  * Handles meals alongside analysis of nutrients, swaps, and adherence to the CFG.
+  * <p>This class acts as a coordinator between </p>
+  * <p>IntakeLog, SwapEngine, TrendAnalyzer, NutrientAnalyzer, FoodGroupAnalyzer, CFGComparer, SwapTracker and Visualizer.</p>
+  */
 public class MealManager {
 
     private static MealManager instance;
@@ -32,6 +37,7 @@ public class MealManager {
     /**
      * Singleton Design Pattern:
      * ensures only one instance of MealManager exists throughout the system
+     * @return meal manager instance
      */
     public static MealManager getInstance() {
         if (instance == null) {
@@ -44,29 +50,38 @@ public class MealManager {
     private MealManager() {}
 
     /**
-     * logs a meal for the given user.
+     * Logs a meal for the given user.
+     * @param meal the specified meal
+     * @param userId the user's ID
      */
     public void logMeal(UUID userId, Meal meal) {
         log.add(userId, meal);
     }
 
     /**
-     * returns all meals logged for the specified user.
+     * Returns all meals logged for the specified user.
+     * @param userId the user's ID
+     * @return a list of meals
      */
     public List<Meal> getMeals(UUID userId) {
         return log.getAll(userId);
     }
 
     /**
-     * returns all meals for the user that fall within the specified date range.
+     * Returns all meals for the user that fall within the specified date range.
+     * @param userId the user's ID
+     * @param range the date range
+     * @return list of meal items
      */
     public List<Meal> getMealsInRange(UUID userId, DateRange range) {
         return log.getMealsBetween(userId, range);
     }
 
     /**
-     * applies a swap request to all meals in the specified date range for the user,
+     * Applies a swap request to all meals in the specified date range for the user,
      * then returns the updated trend result.
+     * @param req the food item swap request
+     * @return the trend result
      */
     public TrendResult applySwapToMeals(SwapRequest req) {
         UUID userId = req.getUser().getUserID();
@@ -104,7 +119,11 @@ public class MealManager {
 //    }
 
     /**
-     * checks how well the user's meals align with the Canada Food Guide (2007 or 2019).
+     * Checks how well the user's meals align with the Canada Food Guide (2007 or 2019).
+     * @param range time range
+     * @param userId the user's ID
+     * @param version the CFG version
+     * @return the CFG report
      */
     public CFGReport requestCFGAlignment(UUID userId, DateRange range, CFGVersion version) {
         List<Meal> meals = getMealsInRange(userId, range);
@@ -114,7 +133,10 @@ public class MealManager {
     }
 
     /**
-     * visualizes the effect of swaps on the user's nutrient intake and CFG alignment.
+     * Visualizes the effect of swaps on the user's nutrient intake and CFG alignment.
+     * @param userId the user's ID
+     * @param options the visualization options
+     * @return swap report
      */
     public SwapEffectReport requestSwapEffectVisualization(UUID userId, VisualizationOps options) {
         List<Meal> allMeals = getMeals(userId);

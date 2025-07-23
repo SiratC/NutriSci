@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Implements {@link Analyzer} and scores the meal's food group stats.
+ */
 public class CFGComparer implements Analyzer<FoodGroupStats, AlignmentScore> {
 
     @Override
@@ -17,6 +20,12 @@ public class CFGComparer implements Analyzer<FoodGroupStats, AlignmentScore> {
         return analyze(stats, CFGVersion.V2019);
     }
 
+    /**
+     * Analyzes the meals adherence based on a given CFG.
+     * @param stats the statistics of the meal
+     * @param version the version of the CFG being used
+     * @return the analysis score based on the CFG
+     */
     public AlignmentScore analyze(FoodGroupStats stats, CFGVersion version) {
         Map<FoodGroup, Double> targets = getTargets(version);
         Map<FoodGroup, Double> actuals = stats.getGroupPercentages();
@@ -38,6 +47,11 @@ public class CFGComparer implements Analyzer<FoodGroupStats, AlignmentScore> {
         return new AlignmentScore(avgScore, alignmentMap);
     }
 
+    /**
+     * Returns food group targets based on CFG version information.
+     * @param version cfg version used
+     * @return map of food group targets
+     */
     private Map<FoodGroup, Double> getTargets(CFGVersion version) {
         Map<FoodGroup, Double> map = new EnumMap<>(FoodGroup.class);
 
@@ -60,6 +74,12 @@ public class CFGComparer implements Analyzer<FoodGroupStats, AlignmentScore> {
         return map;
     }
 
+    /**
+     * Updates the comparison based on action and meals.
+     * @param action change for user.
+     * @param userId the user's ID
+     * @param meals the list of meals
+     */
     public void update(String action, UUID userId, List<Meal> meals) {
         
         System.out.println("[CFGComparer] update triggered: " + action + " for user " + userId);

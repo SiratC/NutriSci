@@ -14,15 +14,27 @@ import org.Dao.FoodNameDAO;
 import org.Dao.NutrientAmountDAO;
 import org.Dao.NutrientNameDAO;
 
+/**
+ * Data handler class for database files.
+ */
 public class DataLoader {
     private final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    /**
+     * Loads all information in given csv files.
+     * @throws Exception if files are not found.
+     */
     public void loadAll() throws Exception {
         loadFoodNames("food_filtered.csv");
         loadNutrientNames("nutrient_name_filtered.csv");
         loadNutrientAmounts("nutrient_amount_filtered.csv");
     }
 
+    /**
+     * Loads all food names from resources.
+     * @param resource the given file
+     * @throws Exception if CSV file is not found
+     */
     private void loadFoodNames(String resource) throws Exception {
         FoodNameDAO foodDao = new DatabaseFoodNameDAO();
 
@@ -47,6 +59,11 @@ public class DataLoader {
 
     }
 
+    /**
+     * Loads all nutrient names based on given resource.
+     * @param resource the given file
+     * @throws Exception if CSV file is not found
+     */
     private void loadNutrientNames(String resource) throws Exception {
         NutrientNameDAO nnDao = new DatabaseNutrientNameDao();
 
@@ -72,6 +89,11 @@ public class DataLoader {
         }
     }
 
+    /**
+     * Loads the nutrient amounts based on given resource.
+     * @param resource the given file
+     * @throws Exception if CSV file is not found
+     */
     private void loadNutrientAmounts(String resource) throws Exception {
         NutrientAmountDAO nutrDao = new DatabaseNutrientAmountDAO();
 

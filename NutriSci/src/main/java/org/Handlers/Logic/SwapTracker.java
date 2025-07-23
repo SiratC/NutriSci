@@ -6,6 +6,9 @@ import org.Enums.NutrientType;
 import java.time.LocalDate;
 import java.util.*;
 
+/**
+ * Implements {@link Analyzer} and handles the nutrient changes due to a swap.
+ */
 public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
 
     private final NutrientCalculator calculator = new NutrientCalculator(new DatabaseNutrientLookup());
@@ -45,10 +48,24 @@ public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
         return changeStats;
     }
 
+    /**
+     * Calculates the change in CFG adherence before and after the swap.
+     *
+     * @param before the food group stats of the meal before the swap
+     * @param after the food group stats of the meal after the swap
+     * @return the difference in CFG score between the meals
+     */
     public CFGDifference analyzeCFG(FoodGroupStats before, FoodGroupStats after) {
         return new CFGDifference(before, after);
     }
 
+    /**
+     * Updates the tracker based on action.
+     *
+     * @param action action causing change
+     * @param userId user's ID
+     * @param meals meal items
+     */
     public void update(String action, UUID userId, List<Meal> meals) {
         
         // implement specific logic here later

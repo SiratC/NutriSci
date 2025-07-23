@@ -16,6 +16,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Manages the creation of visualizations of statistics such as graphs and charts.
+ */
 public class Visualizer {
 
     /**
@@ -23,6 +26,7 @@ public class Visualizer {
      *
      * @param data  labels -> values
      * @param title chart title
+     * @return chart
      */
     public static ChartPanel createPieChartPanel(Map<String, Double> data, String title) {
 
@@ -125,6 +129,12 @@ public class Visualizer {
         return ChartFactory.createPieChart(title, dataset, true, true, false);
     }
 
+    /**
+     * Updates visualizer based on user action.
+     * @param action cause of change
+     * @param userId user's ID
+     * @param meals meal items
+     */
         public void update(String action, UUID userId, List<Meal> meals) {
             
         //  temp stub; actual visualizer update logic later

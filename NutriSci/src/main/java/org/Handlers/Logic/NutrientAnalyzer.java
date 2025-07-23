@@ -7,6 +7,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Implements {@link Analyzer} and handles the nutrient distribution of the meal.
+ */
 public class NutrientAnalyzer implements Analyzer<List<Meal>, NutrientStats> {
 
     private final DatabaseNutrientLookup lookup = new DatabaseNutrientLookup();
