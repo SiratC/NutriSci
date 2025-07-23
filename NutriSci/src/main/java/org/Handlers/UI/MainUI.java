@@ -20,6 +20,8 @@ import org.Handlers.Visual.TrendChartFactory;
 import org.Handlers.Visual.Visualizer;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.Enums.ChartType;
+
 
 public class MainUI {
 
@@ -340,27 +342,23 @@ public class MainUI {
     }
 
     private static JPanel buildAnalysisTab() {
+        JPanel panel = new JPanel(new GridLayout(8, 1));
 
-        JPanel panel = new JPanel(new GridLayout(6, 1));
+        JComboBox<ChartType> chartTypeBox = new JComboBox<>(ChartType.values());
+        panel.add(new JLabel("Choose Chart Type:"));
+        panel.add(chartTypeBox);
 
         JButton btnTrend = new JButton("Run TrendAnalyzer");
-
         JButton btnSwapTrack = new JButton("Run SwapTracker");
-
         JButton btnFG = new JButton("Run FoodGroupAnalyzer");
-
         JButton btnCFG = new JButton("Run CFGComparer");
-
         JButton btnNutri = new JButton("Run NutrientAnalyzer");
 
         btnTrend.addActionListener(e -> {
-
             Analyzer<List<Meal>, TrendResult> trendAnalyzer = analyzerFactory.createTrendAnalyzer();
-
             List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
 
             if (meals == null || meals.isEmpty()) {
-
                 showError(panel, "No meals found for analysis.");
 
                 return;
@@ -369,11 +367,32 @@ public class MainUI {
             TrendResult result = trendAnalyzer.analyze(meals);
             System.out.println("[TrendAnalyzer] Meals: " + result);
 
-            JFreeChart chart = TrendChartFactory.createTrendChart(result);
-            ChartPanel chartPanel = new ChartPanel(chart);
+            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(), false);
+            ChartType selectedType = ops.getChartType();
+            ChartPanel chartPanel;
+
+            switch (selectedType) {
+                case PIE -> {
+                    Visualizer visualizer = new Visualizer();
+                    Map<String, Double> pieData = visualizer.convertToChartData(result.getCumulativeStats(), ops);
+                    chartPanel = Visualizer.createPieChartPanel(pieData, "Cumulative Nutrient Breakdown");
+                }
+                case BAR -> {
+                    JFreeChart chart = TrendChartFactory.createTrendBarChart(result);
+                    chartPanel = new ChartPanel(chart);
+                }
+                case LINE -> {
+                    JFreeChart chart = TrendChartFactory.createTrendLineChart(result);
+                    chartPanel = new ChartPanel(chart);
+                }
+                default -> {
+                    showError(panel, "Invalid chart type.");
+
+                    return;
+                }
+            }
 
             JFrame chartFrame = new JFrame("Trend Analysis Chart");
-
             chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             chartFrame.add(chartPanel);
             chartFrame.pack();
@@ -381,36 +400,66 @@ public class MainUI {
             chartFrame.setVisible(true);
         });
 
-
         btnSwapTrack.addActionListener(e -> {
+            List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
+            if (meals == null || meals.isEmpty()) {
+                showError(panel, "No meals found.");
 
-            NutrientChangeStats result = swapTracker.analyze(intakeLog.getAll(currentUser.getUserID()));
+                return;
+            }
 
+            NutrientChangeStats result = swapTracker.analyze(meals);
             System.out.println("[SwapTracker] Results: " + result);
+
+            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(), false);
+            Visualizer visualizer = new Visualizer();
+            Map<String, Map<String, Double>> chartData = visualizer.convertToChartData(result, ops);
+
+            ChartType selectedType = ops.getChartType();
+            ChartPanel chartPanel;
+
+            switch (selectedType) {
+
+                case PIE -> {
+                    Map<String, Double> combined = new HashMap<>();
+                    chartData.values().forEach(map -> map.forEach((k, v) -> combined.merge(k, v, Double::sum)));
+                    chartPanel = Visualizer.createPieChartPanel(combined, "Swap Tracker Pie View");
+                }
+
+                case BAR -> chartPanel = Visualizer.createBarChartPanel(chartData, "Swap Tracker Bar View");
+
+                case LINE -> chartPanel = Visualizer.createLineChartPanel(chartData, "Swap Tracker Line View");
+
+                default -> {
+                    showError(panel, "Invalid chart type.");
+                    return;
+                }
+            }
+
+            JFrame chartFrame = new JFrame("Swap Tracker Chart");
+            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            chartFrame.add(chartPanel);
+            chartFrame.pack();
+            chartFrame.setLocationRelativeTo(null);
+            chartFrame.setVisible(true);
         });
 
         btnFG.addActionListener(e -> {
-
             Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
             FoodGroupStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
-
             System.out.println("[FoodGroupAnalyzer] Results: " + result);
         });
 
         btnCFG.addActionListener(e -> {
-
             Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
             FoodGroupStats stats = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
             AlignmentScore result = cfgComparer.analyze(stats, CFGVersion.V2019);
-
             System.out.println("[CFGComparer] Score: " + result);
         });
 
         btnNutri.addActionListener(e -> {
-
             Analyzer<List<Meal>, NutrientStats> analyzer = analyzerFactory.createNutrientAnalyzer();
             NutrientStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
-
             System.out.println("[NutrientAnalyzer] Top 3 Nutrients: " + result.getTopNutrients());
         });
 
@@ -422,6 +471,7 @@ public class MainUI {
 
         return panel;
     }
+
 
     private static void showError(Component parent, String msg) {
 

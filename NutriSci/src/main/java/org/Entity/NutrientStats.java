@@ -57,7 +57,17 @@ public class NutrientStats {
         public NutrientStats calculateStats(Map<NutrientType, Double> totalMap) {
             NutrientStats stats = new NutrientStats();
             stats.setTotalItems(totalMap.size());
-            stats.setNutrientPercentages(totalMap);
+
+
+            Map<NutrientType, Double> roundedMap = new EnumMap<>(NutrientType.class);
+
+            for (Map.Entry<NutrientType, Double> entry : totalMap.entrySet()) {
+
+                double rounded = Math.round(entry.getValue() * 100.0) / 100.0;
+                roundedMap.put(entry.getKey(), rounded);
+            }
+
+            stats.setNutrientPercentages(roundedMap);
 
             List<Map.Entry<NutrientType, Double>> sorted = new ArrayList<>(totalMap.entrySet());
             sorted.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
@@ -77,7 +87,7 @@ public class NutrientStats {
             }
 
             stats.setTopNutrients(topNutrients);
-            stats.setOtherPercentage(totalSum - topSum);
+            stats.setOtherPercentage(Math.round((totalSum - topSum) * 100.0) / 100.0);
             return stats;
         }
 

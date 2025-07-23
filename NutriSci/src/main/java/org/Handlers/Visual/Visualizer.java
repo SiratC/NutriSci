@@ -1,6 +1,4 @@
 package org.Handlers.Visual;
-
-
 import org.Entity.Meal;
 import org.Entity.NutrientChangeStats;
 import org.Entity.NutrientStats;
@@ -15,6 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.chart.plot.PlotOrientation;
 
 public class Visualizer {
 
@@ -30,15 +30,53 @@ public class Visualizer {
 
         data.forEach(dataset::setValue);
 
-        JFreeChart chart = ChartFactory.createPieChart(
+        JFreeChart chart = ChartFactory.createPieChart(title, dataset, true, true, false);
+        return new ChartPanel(chart);
+    }
+
+    public static ChartPanel createBarChartPanel(Map<String, Map<String, Double>> data, String title) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        for (Map.Entry<String, Map<String, Double>> dateEntry : data.entrySet()) {
+
+            String date = dateEntry.getKey();
+            for (Map.Entry<String, Double> nutrientEntry : dateEntry.getValue().entrySet()) {
+
+                dataset.addValue(nutrientEntry.getValue(), nutrientEntry.getKey(), date);
+            }
+        }
+
+        JFreeChart chart = ChartFactory.createBarChart(title, "Date", "Value", dataset, PlotOrientation.VERTICAL, true, true, false);
+
+        return new ChartPanel(chart);
+    }
+
+    public static ChartPanel createLineChartPanel(Map<String, Map<String, Double>> chartData, String title) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        for (Map.Entry<String, Map<String, Double>> dateEntry : chartData.entrySet()) {
+
+            String date = dateEntry.getKey();
+            for (Map.Entry<String, Double> nutrientEntry : dateEntry.getValue().entrySet()) {
+
+                dataset.addValue(nutrientEntry.getValue(), nutrientEntry.getKey(), date);
+            }
+        }
+
+        JFreeChart chart = ChartFactory.createLineChart(
                 title,
+                "Date",
+                "Amount",
                 dataset,
+                PlotOrientation.VERTICAL,
                 true,
                 true,
                 false
         );
+
         return new ChartPanel(chart);
     }
+
 
     /**
      * converts NutrientStats into a simple chart format.
@@ -130,5 +168,7 @@ public class Visualizer {
         //  temp stub; actual visualizer update logic later
         System.out.println("[Visualizer] update triggered: " + action + " for user " + userId);
     }
+
+
 
 }

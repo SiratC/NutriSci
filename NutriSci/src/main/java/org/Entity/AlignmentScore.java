@@ -37,7 +37,7 @@ public class AlignmentScore {
 
     public double getScoreForGroup(FoodGroup group) {
 
-        return details.getOrDefault(group, 0.0);
+        return Math.round(details.getOrDefault(group, 0.0) * 10.0) / 10.0;
     }
 
     // debug

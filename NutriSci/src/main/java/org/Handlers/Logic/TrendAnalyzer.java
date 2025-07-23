@@ -28,8 +28,11 @@ public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
             Map<NutrientType, Double> dailyMap = new EnumMap<>(NutrientType.class);
 
             for (Meal meal : dayMeals) {
+
                 Map<NutrientType, Double> mealMap = calculator.calculate(meal);
+
                 for (Map.Entry<NutrientType, Double> m : mealMap.entrySet()) {
+
                     dailyMap.merge(m.getKey(), m.getValue(), Double::sum);
                     totalMap.merge(m.getKey(), m.getValue(), Double::sum);
                 }

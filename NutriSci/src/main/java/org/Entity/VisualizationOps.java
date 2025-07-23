@@ -1,8 +1,6 @@
 package org.Entity;
-
 import org.Enums.ChartType;
 import org.Enums.NutrientType;
-
 import java.util.List;
 
 public class VisualizationOps {
@@ -14,7 +12,9 @@ public class VisualizationOps {
     private ChartType chartType;
     private boolean beforeAfter;
 
+
     public VisualizationOps(DateRange dateRange, List<NutrientType> nutrients, int topCount, boolean includeOther, ChartType chartType, boolean beforeAfter) {
+
         this.dateRange = dateRange;
         this.nutrients = nutrients;
         this.topCount = topCount;
@@ -23,51 +23,68 @@ public class VisualizationOps {
         this.beforeAfter = beforeAfter;
     }
 
+    // default constructor
+    public VisualizationOps() {
+        this(null, List.of(NutrientType.values()), 3, true, ChartType.PIE, false);
+    }
+
     public DateRange getDateRange() {
+
         return dateRange;
     }
 
     public List<NutrientType> getNutrients() {
+
         return nutrients;
     }
 
     public int getTopCount() {
+
         return topCount;
     }
 
     public boolean isIncludeOther() {
+
         return includeOther;
     }
 
     public ChartType getChartType() {
+
         return chartType;
     }
 
     public boolean isBeforeAfter() {
+
         return beforeAfter;
     }
 
     public void setDateRange(DateRange dateRange) {
+
         this.dateRange = dateRange;
     }
 
     public void setNutrients(List<NutrientType> nutrients) {
+
         this.nutrients = nutrients;
     }
 
     public void setTopCount(int topCount) {
+
         this.topCount = topCount;
     }
 
     public void setIncludeOther(boolean includeOther) {
+
         this.includeOther = includeOther;
     }
 
     public void setChartType(ChartType chartType) {
+
         this.chartType = chartType;
     }
 
     public void setBeforeAfter(boolean beforeAfter) {
+
         this.beforeAfter = beforeAfter;
     }
 }
