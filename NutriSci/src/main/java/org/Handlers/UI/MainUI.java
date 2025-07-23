@@ -149,6 +149,7 @@ public class MainUI {
     }
 
     private static JPanel buildRegisterTab() {
+
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
@@ -179,11 +180,13 @@ public class MainUI {
 
             if (username.isEmpty() || password.isEmpty()) {
                 showError(panel, "Username and password must not be empty.");
+
                 return;
             }
 
             if (mockUserDB.containsKey(username)) {
                 showError(panel, "User already exists.");
+
                 return;
             }
 
@@ -225,7 +228,9 @@ public class MainUI {
             List<FoodName> foods = foodDao.getAllFoodNames();
             if (foods.isEmpty()) {
                 System.out.println("No foods found.");
-            } else {
+            }
+            else {
+
                 for (FoodName f : foods) {
                     foodDropdown.addItem(f);
                 }
@@ -240,12 +245,14 @@ public class MainUI {
         logButton.addActionListener(e -> {
             if (currentUser == null) {
                 showError(panel, "Please log in first.");
+
                 return;
             }
 
             FoodName selected = (FoodName) foodDropdown.getSelectedItem();
             if (selected == null) {
                 showError(panel, "No food selected.");
+
                 return;
             }
 
@@ -269,6 +276,7 @@ public class MainUI {
         if (currentUser == null) {
 
             showError(parent, "Please log in first.");
+
             return;
         }
 
@@ -287,6 +295,7 @@ public class MainUI {
         for (Map.Entry<NutrientType, Double> entry : nutMap.entrySet()) {
 
             if (entry.getValue() > 0) {
+
                 stringMap.put(entry.getKey().name(), entry.getValue());
             }
         }
@@ -354,6 +363,7 @@ public class MainUI {
         JButton btnCFG = new JButton("Run CFGComparer");
         JButton btnNutri = new JButton("Run NutrientAnalyzer");
 
+        // TrendAnalyzer runs
         btnTrend.addActionListener(e -> {
             Analyzer<List<Meal>, TrendResult> trendAnalyzer = analyzerFactory.createTrendAnalyzer();
             List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
@@ -372,6 +382,7 @@ public class MainUI {
             ChartPanel chartPanel;
 
             switch (selectedType) {
+
                 case PIE -> {
                     Visualizer visualizer = new Visualizer();
                     Map<String, Double> pieData = visualizer.convertToChartData(result.getCumulativeStats(), ops);
@@ -400,6 +411,7 @@ public class MainUI {
             chartFrame.setVisible(true);
         });
 
+        // SwapTracker runs
         btnSwapTrack.addActionListener(e -> {
             List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
             if (meals == null || meals.isEmpty()) {
@@ -426,12 +438,13 @@ public class MainUI {
                     chartPanel = Visualizer.createPieChartPanel(combined, "Swap Tracker Pie View");
                 }
 
-                case BAR -> chartPanel = Visualizer.createBarChartPanel(chartData, "Swap Tracker Bar View");
+                case BAR -> chartPanel = Visualizer.createBarChartFromTimeSeries(chartData, "Swap Tracker Bar View");
 
-                case LINE -> chartPanel = Visualizer.createLineChartPanel(chartData, "Swap Tracker Line View");
+                case LINE -> chartPanel = Visualizer.createLineChartFromTimeSeries(chartData, "Swap Tracker Line View");
 
                 default -> {
                     showError(panel, "Invalid chart type.");
+
                     return;
                 }
             }
@@ -444,24 +457,108 @@ public class MainUI {
             chartFrame.setVisible(true);
         });
 
+        // FoodGroupAnalyzer runs
         btnFG.addActionListener(e -> {
+
             Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
             FoodGroupStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
             System.out.println("[FoodGroupAnalyzer] Results: " + result);
+
+            Map<String, Double> chartData = new HashMap<>();
+
+            result.getGroupPercentages().forEach((k, v) -> chartData.put(k.name(), v));
+
+            ChartType selectedType = (ChartType) chartTypeBox.getSelectedItem();
+            ChartPanel chartPanel;
+
+            switch (selectedType) {
+
+                case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "Food Group Pie View");
+                case BAR -> chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Food Group Bar View");
+                case LINE -> chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Food Group Line View");
+                default -> {
+                    showError(panel, "Invalid chart type.");
+
+                    return;
+                }
+            }
+
+            JFrame chartFrame = new JFrame("Food Group Chart");
+            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            chartFrame.add(chartPanel);
+            chartFrame.pack();
+            chartFrame.setLocationRelativeTo(null);
+            chartFrame.setVisible(true);
+
         });
 
+        // CFGComparer runs
         btnCFG.addActionListener(e -> {
+
             Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
             FoodGroupStats stats = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
             AlignmentScore result = cfgComparer.analyze(stats, CFGVersion.V2019);
             System.out.println("[CFGComparer] Score: " + result);
+
+            Map<String, Double> chartData = Map.of("Alignment Score", result.getScore());
+            ChartType selectedType = (ChartType) chartTypeBox.getSelectedItem();
+            ChartPanel chartPanel;
+
+            switch (selectedType) {
+
+                case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "CFGComparer Pie View");
+                case BAR -> chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "CFGComparer Bar View");
+                case LINE -> chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "CFGComparer Line View");
+                default -> {
+                    showError(panel, "Invalid chart type.");
+
+                    return;
+                }
+            }
+
+            JFrame chartFrame = new JFrame("CFGComparer Chart");
+            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            chartFrame.add(chartPanel);
+            chartFrame.pack();
+            chartFrame.setLocationRelativeTo(null);
+            chartFrame.setVisible(true);
         });
 
+        // NutrientAnalyzer runs
         btnNutri.addActionListener(e -> {
+
             Analyzer<List<Meal>, NutrientStats> analyzer = analyzerFactory.createNutrientAnalyzer();
             NutrientStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
             System.out.println("[NutrientAnalyzer] Top 3 Nutrients: " + result.getTopNutrients());
+
+            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(), false);
+            Visualizer visualizer = new Visualizer();
+            Map<String, Double> chartData = visualizer.convertToChartData(result, ops);
+
+            ChartType selectedType = ops.getChartType();
+            ChartPanel chartPanel;
+
+            switch (selectedType) {
+
+                case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "Nutrient Analyzer Pie View");
+                case BAR -> chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Nutrient Analyzer Bar View");
+                case LINE -> chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Nutrient Analyzer Line View");
+                default -> {
+                    showError(panel, "Invalid chart type.");
+
+                    return;
+                }
+            }
+
+            JFrame chartFrame = new JFrame("Nutrient Analyzer Chart");
+            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            chartFrame.add(chartPanel);
+            chartFrame.pack();
+            chartFrame.setLocationRelativeTo(null);
+            chartFrame.setVisible(true);
+
         });
+
 
         panel.add(btnTrend);
         panel.add(btnSwapTrack);

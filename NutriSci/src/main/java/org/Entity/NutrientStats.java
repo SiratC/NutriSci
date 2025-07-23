@@ -53,6 +53,7 @@ public class NutrientStats {
                 ']';
     }
 
+    // template design implemented
     public static abstract class NutrientStatsTemplate {
         public NutrientStats calculateStats(Map<NutrientType, Double> totalMap) {
             NutrientStats stats = new NutrientStats();

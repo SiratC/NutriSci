@@ -80,7 +80,7 @@ public class MealManager {
      * creates a detailed nutrient intake report with visuals
      * for a given user and time range.
      */
-    // for now commented out until database fully done.
+    // Not necessary but can be implemented later
 //    public IntakeReport requestNutrientBreakdown(UUID userId, DateRange range, VisualizationOps options) {
 //        List<Meal> meals = getMealsInRange(userId, range);
 //

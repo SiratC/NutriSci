@@ -27,51 +27,104 @@ public class Visualizer {
     public static ChartPanel createPieChartPanel(Map<String, Double> data, String title) {
 
         DefaultPieDataset dataset = new DefaultPieDataset();
-
         data.forEach(dataset::setValue);
-
         JFreeChart chart = ChartFactory.createPieChart(title, dataset, true, true, false);
+
         return new ChartPanel(chart);
     }
 
-    public static ChartPanel createBarChartPanel(Map<String, Map<String, Double>> data, String title) {
+    /**
+     * creates a bar chart from a simple key-value map (nutrient -> amount).
+     * used for NutrientAnalyzer, FoodGroupAnalyzer, and CFGComparer results.
+     *
+     * @param data
+     * @param title
+     * @return
+     */
+
+    public static ChartPanel createBarChartFromSimpleData(Map<String, Double> data, String title) {
+
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        for (Map.Entry<String, Double> entry : data.entrySet()) {
+
+            dataset.addValue(entry.getValue(), "Value", entry.getKey());
+        }
+        JFreeChart chart = ChartFactory.createBarChart(title, "Nutrient", "Amount", dataset);
+
+        return new ChartPanel(chart);
+    }
+
+
+    /**
+     * creates a line chart from a simple key-value map.
+     * no time axis used here.
+     * @param data
+     * @param title
+     * @return
+     */
+
+    public static ChartPanel createLineChartFromSimpleData(Map<String, Double> data, String title) {
+
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        for (Map.Entry<String, Double> entry : data.entrySet()) {
+
+            dataset.addValue(entry.getValue(), "Value", entry.getKey());
+        }
+        JFreeChart chart = ChartFactory.createLineChart(title, "Nutrient", "Amount", dataset);
+
+        return new ChartPanel(chart);
+    }
+
+
+    /**
+     * creates a bar chart from a time series of nutrient values.
+     * each inner map represents nutrients for a specific date.
+     * used for SwapTracker
+     * @param data
+     * @param title
+     * @return
+     */
+    public static ChartPanel createBarChartFromTimeSeries(Map<String, Map<String, Double>> data, String title) {
+
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 
         for (Map.Entry<String, Map<String, Double>> dateEntry : data.entrySet()) {
 
             String date = dateEntry.getKey();
-            for (Map.Entry<String, Double> nutrientEntry : dateEntry.getValue().entrySet()) {
 
+            for (Map.Entry<String, Double> nutrientEntry : dateEntry.getValue().entrySet()) {
                 dataset.addValue(nutrientEntry.getValue(), nutrientEntry.getKey(), date);
             }
         }
-
         JFreeChart chart = ChartFactory.createBarChart(title, "Date", "Value", dataset, PlotOrientation.VERTICAL, true, true, false);
 
         return new ChartPanel(chart);
     }
 
-    public static ChartPanel createLineChartPanel(Map<String, Map<String, Double>> chartData, String title) {
+
+    /**
+     * creates a line chart from a time series of nutrient values.
+     * each inner map represents nutrients for a specific date.
+     * used for SwapTracker
+     * @param chartData
+     * @param title
+     * @return
+     */
+    public static ChartPanel createLineChartFromTimeSeries(Map<String, Map<String, Double>> chartData, String title) {
+
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
 
         for (Map.Entry<String, Map<String, Double>> dateEntry : chartData.entrySet()) {
-
             String date = dateEntry.getKey();
-            for (Map.Entry<String, Double> nutrientEntry : dateEntry.getValue().entrySet()) {
 
+            for (Map.Entry<String, Double> nutrientEntry : dateEntry.getValue().entrySet()) {
                 dataset.addValue(nutrientEntry.getValue(), nutrientEntry.getKey(), date);
             }
         }
-
         JFreeChart chart = ChartFactory.createLineChart(
-                title,
-                "Date",
-                "Amount",
-                dataset,
-                PlotOrientation.VERTICAL,
-                true,
-                true,
-                false
+                title, "Date", "Amount", dataset, PlotOrientation.VERTICAL, true, true, false
         );
 
         return new ChartPanel(chart);
