@@ -1,34 +1,50 @@
 import static org.junit.jupiter.api.Assertions.*;
+
 import org.Entity.Food;
 import org.Entity.Meal;
-import org.Handlers.Logic.DatabaseNutrientLookup;
-import org.Handlers.Logic.NutrientCalculator;
 import org.Enums.NutrientType;
+import org.Handlers.Logic.NutrientCalculator;
 import org.junit.jupiter.api.Test;
+
 import java.time.LocalDate;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.UUID;
 
 class NutrientCalculatorTest {
+
+    // Stub class for predictable nutrient values
+    static class StubNutrientLookup extends org.Handlers.Logic.DatabaseNutrientLookup {
+        @Override
+        public Map<NutrientType, Double> getPerUnit(int foodId) {
+            Map<NutrientType, Double> nutrients = new EnumMap<>(NutrientType.class);
+            nutrients.put(NutrientType.Protein, 10.0); // Stub: 10g protein per unit
+            return nutrients;
+        }
+    }
+
     @Test
-    void dummyLoopUp() {
-        Meal meal = new Meal(UUID.randomUUID(), LocalDate.now());
-        meal.addItem(new Food(1001, "Oatmeal", 1, 100));
+    void calculatesProteinCorrectlyFromStubLookup() {
+        // Arrange
+        Meal meal = new Meal(UUID.randomUUID(),LocalDate.now(), "Breakfast");
+        meal.addItem(new Food(1001, "Oatmeal", 3, 100.0)); // Quantity = 3
 
-        NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
+        NutrientCalculator calculator = new NutrientCalculator(new StubNutrientLookup());
 
-        Map<NutrientType, Double> result = calc.calculate(meal);
+        // Act
+        Map<NutrientType, Double> result = calculator.calculate(meal);
 
-        // for exact number 
-        assertTrue(result.get(NutrientType.Protein) == 30.0); // 3 (quantity) x 10 (protein) = 30
+        // Assert
+        double expectedProtein = 30.0; // 3 * 10.0
+        double actualProtein = result.get(NutrientType.Protein);
+        double delta = 1e-6;
 
-        // for floating number
-        double expected = 30.0;
-        double actual   = result.get(NutrientType.Protein);
-        double e  = 1e-6;
-
-        assertTrue(Math.abs(actual - expected) < e,
-                "Protein should approximately = " + expected + " but was " + actual);
+        assertEquals(expectedProtein, actualProtein, delta,
+                "Protein should be " + expectedProtein + " but was " + actualProtein);
     }
 }
+
+
+
+
 

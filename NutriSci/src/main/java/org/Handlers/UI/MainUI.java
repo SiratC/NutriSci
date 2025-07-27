@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
@@ -591,40 +592,81 @@ public class MainUI {
     // }
 
     private static JPanel buildSwapTab() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JPanel panel = new JPanel(new FlowLayout());
-        JButton swapBtn = new JButton("Apply Swap (Fiber / CFG 2020)");
-        swapBtn.addActionListener(e -> handleSwapLogic(panel));
-        panel.add(swapBtn);
+        JComboBox<NutrientType> nutrientBox = new JComboBox<>(NutrientType.values());
+        JTextField intensityField = new JTextField("10");
+        JCheckBox percentCheck = new JCheckBox("Use Percentage", true);
+        JComboBox<CFGVersion> cfgBox = new JComboBox<>(CFGVersion.values());
+        JButton applySwapBtn = new JButton("Apply Swap");
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel("Target Nutrient:"), gbc);
+        gbc.gridx = 1;
+        panel.add(nutrientBox, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(new JLabel("Intensity:"), gbc);
+        gbc.gridx = 1;
+        panel.add(intensityField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        panel.add(new JLabel("CFG Version:"), gbc);
+        gbc.gridx = 1;
+        panel.add(cfgBox, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        panel.add(new JLabel("Mode:"), gbc);
+        gbc.gridx = 1;
+        panel.add(percentCheck, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        panel.add(applySwapBtn, gbc);
+
+        applySwapBtn.addActionListener(e -> {
+            if (currentUser == null) {
+                showError(panel, "Please log in first.");
+                return;
+            }
+
+            try {
+                NutrientType nutrient = (NutrientType) nutrientBox.getSelectedItem();
+                CFGVersion cfg = (CFGVersion) cfgBox.getSelectedItem();
+                double intensity = Double.parseDouble(intensityField.getText());
+                boolean isPercent = percentCheck.isSelected();
+
+                DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), range);
+                if (meals == null || meals.isEmpty()) {
+                    showError(panel, "No meals found in selected range.");
+                    return;
+                }
+
+                SwapRequest request = new SwapRequest(currentUser, range, nutrient, cfg,
+                        intensity / (isPercent ? 100.0 : 1.0), isPercent);
+                List<Meal> swapped = swapEngine.applySwap(meals, request);
+                intakeLog.updateMeals(currentUser.getUserID(), swapped);
+
+                JOptionPane.showMessageDialog(panel, "Swaps applied to " + swapped.size() + " meals.");
+                showProgressDialog();
+
+            } catch (NumberFormatException ex) {
+                showError(panel, "Invalid intensity value.");
+            } catch (Exception ex) {
+                showError(panel, "Swap failed: " + ex.getMessage());
+            }
+        });
 
         return panel;
-    }
-
-    private static void handleSwapLogic(Component parent) {
-
-        if (currentUser == null) {
-
-            showError(parent, "Please log in first.");
-
-            return;
-        }
-
-        DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
-
-        List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), range);
-
-        if (meals == null || meals.isEmpty()) {
-
-            showError(parent, "No meals found to swap.");
-
-            return;
-        }
-
-        SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2019);
-        List<Meal> swapped = swapEngine.applySwap(meals, request);
-        intakeLog.updateMeals(currentUser.getUserID(), swapped);
-
-        JOptionPane.showMessageDialog(parent, "Swaps applied to " + swapped.size() + " meals.");
     }
 
     private static JPanel buildSwapCompareTab() {
@@ -652,7 +694,8 @@ public class MainUI {
                 return;
             }
 
-            SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2019);
+            SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2019,
+                    10.0, true);
             List<Meal> swappedMeals = swapEngine.applySwap(originalMeals, request);
 
             NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());

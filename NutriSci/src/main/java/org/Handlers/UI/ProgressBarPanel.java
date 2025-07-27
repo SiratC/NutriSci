@@ -11,7 +11,6 @@ public class ProgressBarPanel extends JPanel {
     private final Map<NutrientType, Double> progressMap;
 
     public ProgressBarPanel(Map<NutrientType, Double> progressMap) {
-
         this.progressMap = progressMap;
         setLayout(new GridLayout(progressMap.size(), 1, 5, 5));
         setBackground(Color.WHITE);
@@ -19,7 +18,6 @@ public class ProgressBarPanel extends JPanel {
     }
 
     private void buildBars() {
-
         for (Map.Entry<NutrientType, Double> entry : progressMap.entrySet()) {
             String label = entry.getKey().name();
             double value = Math.min(entry.getValue(), 100.0);
@@ -39,11 +37,20 @@ public class ProgressBarPanel extends JPanel {
         }
     }
 
+    public void updateProgress(Map<NutrientType, Double> newProgress) {
+        removeAll();
+        progressMap.clear();
+        progressMap.putAll(newProgress);
+        buildBars();
+        revalidate();
+        repaint();
+    }
+
     private Color getColorForPercentage(double pct) {
-
-        if (pct < 50) return Color.RED;
-        if (pct < 85) return Color.ORANGE;
-
+        if (pct < 50)
+            return Color.RED;
+        if (pct < 85)
+            return Color.ORANGE;
         return new Color(0, 180, 0);
     }
 }

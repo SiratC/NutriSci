@@ -1,42 +1,52 @@
 package org.Handlers.Logic;
 
+import java.math.BigDecimal;
 import org.Dao.*;
 import org.Entity.*;
 import org.Enums.NutrientType;
 import org.Handlers.Database.DatabaseFoodNameDAO;
 import org.Handlers.Database.DatabaseNutrientAmountDAO;
 import org.Handlers.Database.DatabaseNutrientNameDao;
+
+import java.sql.SQLException;
 import java.util.*;
 
 public class SwapEngine {
 
     private final NutrientAmountDAO nutrientAmountDAO = new DatabaseNutrientAmountDAO();
-
     private final NutrientNameDAO nutrientNameDAO = new DatabaseNutrientNameDao();
-
     private final FoodNameDAO foodNameDAO = new DatabaseFoodNameDAO();
 
     public List<Meal> applySwap(List<Meal> meals, SwapRequest request) {
         NutrientType target = request.getTargetNutrient();
-
-        // copies meals and swap in place
         List<Meal> swappedMeals = new ArrayList<>();
 
         for (Meal meal : meals) {
             Meal.Builder builder = new Meal.Builder().withDate(meal.getDate()).withId(meal.getId());
+            int swapCount = 0;
 
             for (Food food : meal.getItems()) {
-                // determines nutrient contribution
-                Map<NutrientType, Double> foodNutrients = food.getNutrients();
-                double targetValue = foodNutrients.getOrDefault(target, 0.0);
-
-                // checks if nutrient contribution is low; try to swap
-                if (targetValue < 5.0) {
-                    Optional<Food> better = findBetterSwap(food, target);
-                    builder.add(better.orElse(food)); // if better swap found, use it
-                } else {
+                if (swapCount >= 2) {
                     builder.add(food);
+                    continue;
                 }
+
+                double targetValue = food.getNutrients().getOrDefault(target, 0.0);
+
+                if (targetValue < 5.0) {
+                    try {
+                        Optional<Food> better = findBetterSwap(food, target, request);
+                        if (better.isPresent()) {
+                            builder.add(better.get());
+                            swapCount++;
+                            continue;
+                        }
+                    } catch (SQLException e) {
+                        System.err.println("DB error during swap: " + e.getMessage());
+                    }
+                }
+
+                builder.add(food);
             }
 
             swappedMeals.add(builder.build());
@@ -45,52 +55,75 @@ public class SwapEngine {
         return swappedMeals;
     }
 
-    /**
-     * tries to find a better food (higher in target nutrient) from the DB
-     */
+    private Optional<Food> findBetterSwap(Food original, NutrientType targetNutrient, SwapRequest request)
+            throws SQLException {
+        int targetId = mapNutrientTypeToId(targetNutrient);
+        Map<NutrientType, Double> originalNutrients = original.getNutrients();
+        String originalGroup = guessGroup(original.getName());
+        List<NutrientAmount> topFoods = new ArrayList<>();
 
-    private Optional<Food> findBetterSwap(Food original, NutrientType targetNutrient) {
-        try {
-            // map nutrient type to nutrientNameId from DB. For example, Protein = 1003
-            int targetId = mapNutrientTypeToId(targetNutrient);
-            List<NutrientAmount> amounts = nutrientAmountDAO.findByFoodId(original.getName().hashCode());
+        for (int id = 100; id <= 200; id++) {
+            List<NutrientAmount> naList = nutrientAmountDAO.findByFoodId(id);
+            Map<NutrientType, Double> candidateNutrients = new HashMap<>();
 
-            // find foods high in the target nutrient
-            List<NutrientAmount> topFoods = new ArrayList<>();
-            for (int id = 100; id <= 200; id++) { // arbitrary range
-                List<NutrientAmount> naList = nutrientAmountDAO.findByFoodId(id);
-                for (NutrientAmount na : naList) {
-                    if (na.getNutrientNameId() == targetId && na.getNutrientValue().doubleValue() > 5.0) {
-                        topFoods.add(na);
-                    }
+            for (NutrientAmount na : naList) {
+                NutrientType type = mapIdToNutrientType(na.getNutrientNameId());
+                if (type != null) {
+                    candidateNutrients.put(type, na.getNutrientValue().doubleValue());
                 }
             }
 
-            // sorts by nutrient value
-            topFoods.sort(
-                    (a, b) -> Double.compare(b.getNutrientValue().doubleValue(), a.getNutrientValue().doubleValue()));
+            Double candidateTargetVal = candidateNutrients.get(targetNutrient);
+            double originalVal = originalNutrients.getOrDefault(targetNutrient, 0.0);
 
-            for (NutrientAmount na : topFoods) {
-
-                String desc = foodNameDAO.findDescriptionById(na.getFoodId());
-
-                if (desc != null && !desc.equalsIgnoreCase(original.getName())) {
-
-                    return Optional.of(new Food(na.getFoodId(), desc, original.getQuantity(), original.getCalories()));
-
+            boolean meetsGoal = false;
+            if (candidateTargetVal != null) {
+                if (request.isPercentage()) {
+                    meetsGoal = candidateTargetVal >= originalVal * (1 + request.getIntensityAmount());
+                } else {
+                    meetsGoal = candidateTargetVal >= originalVal + request.getIntensityAmount();
                 }
             }
 
-        } catch (Exception e) {
-            System.err.println("Swap error: " + e.getMessage());
+            if (candidateTargetVal != null && candidateTargetVal > 5.0 &&
+                    meetsGoal &&
+                    isWithinThreshold(originalNutrients, candidateNutrients, targetNutrient)) {
+                topFoods.add(new NutrientAmount(id, targetId, BigDecimal.valueOf(candidateTargetVal)));
+            }
+        }
+
+        topFoods.sort((a, b) -> {
+            try {
+                String descA = foodNameDAO.findDescriptionById(a.getFoodId());
+                String descB = foodNameDAO.findDescriptionById(b.getFoodId());
+
+                String groupA = guessGroup(descA);
+                String groupB = guessGroup(descB);
+
+                boolean sameGroupA = groupA.equals(originalGroup);
+                boolean sameGroupB = groupB.equals(originalGroup);
+
+                if (sameGroupA && !sameGroupB)
+                    return -1;
+                if (!sameGroupA && sameGroupB)
+                    return 1;
+
+                return Double.compare(b.getNutrientValue().doubleValue(), a.getNutrientValue().doubleValue());
+            } catch (SQLException e) {
+                System.err.println("Error comparing food groups: " + e.getMessage());
+                return 0;
+            }
+        });
+
+        for (NutrientAmount na : topFoods) {
+            String desc = foodNameDAO.findDescriptionById(na.getFoodId());
+            if (desc != null && !desc.equalsIgnoreCase(original.getName())) {
+                return Optional.of(new Food(na.getFoodId(), desc, original.getQuantity(), original.getCalories()));
+            }
         }
 
         return Optional.empty();
     }
-
-    /**
-     * dummy mapping (for debug), later implementing nutrientNameID from DB
-     */
 
     private int mapNutrientTypeToId(NutrientType type) {
         return switch (type) {
@@ -100,5 +133,58 @@ public class SwapEngine {
             case Fiber -> 1079;
             default -> 9999;
         };
+    }
+
+    private NutrientType mapIdToNutrientType(int id) {
+        return switch (id) {
+            case 1003 -> NutrientType.Protein;
+            case 1005 -> NutrientType.Carbohydrate;
+            case 1004 -> NutrientType.Fat;
+            case 1079 -> NutrientType.Fiber;
+            default -> null;
+        };
+    }
+
+    private boolean isWithinThreshold(Map<NutrientType, Double> original,
+            Map<NutrientType, Double> candidate,
+            NutrientType target) {
+        for (NutrientType type : original.keySet()) {
+            if (type == target)
+                continue;
+
+            double origVal = original.getOrDefault(type, 0.0);
+            double candVal = candidate.getOrDefault(type, 0.0);
+
+            if (origVal == 0.0 && candVal != 0.0)
+                return false;
+            if (origVal != 0.0) {
+                double diffRatio = Math.abs(candVal - origVal) / origVal;
+                if (diffRatio > 0.10)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private String guessGroup(String description) {
+        description = description.toLowerCase();
+        if (description.contains("milk") || description.contains("cheese") || description.contains("yogurt"))
+            return "dairy";
+        if (description.contains("chicken") || description.contains("beef") || description.contains("pork") ||
+                description.contains("lamb") || description.contains("meat"))
+            return "meat";
+        if (description.contains("fish") || description.contains("salmon") ||
+                description.contains("tuna") || description.contains("cod"))
+            return "fish";
+        if (description.contains("carrot") || description.contains("broccoli") ||
+                description.contains("spinach") || description.contains("vegetable"))
+            return "vegetable";
+        if (description.contains("apple") || description.contains("banana") ||
+                description.contains("fruit") || description.contains("berry"))
+            return "fruit";
+        if (description.contains("rice") || description.contains("bread") ||
+                description.contains("grain") || description.contains("cereal"))
+            return "grain";
+        return "other";
     }
 }
