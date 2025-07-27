@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface MealLogDAO {
-    UUID insertMeal(UUID profileId, List<Food> foods) throws SQLException;
+    UUID insertMeal(UUID profileId, String type, List<Food> foods) throws SQLException;
 
     List<Meal> getAllMealsByProfileId(UUID profileId) throws SQLException;
 

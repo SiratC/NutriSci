@@ -143,6 +143,9 @@ public class Profile {
         this.nutrientGoals = goals;
     }
 
+    public double calculateBMI() {
+        return weight / Math.pow(height / 100.0, 2);
+    }
 
     @Override
     public String toString() {

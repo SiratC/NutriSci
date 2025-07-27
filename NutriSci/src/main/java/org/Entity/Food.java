@@ -13,17 +13,17 @@ public class Food {
     private double calories;
 
     public Food(int foodID, String name, double quantity, double calories) {
-
         this.foodID = foodID;
         this.name = name;
         this.quantity = quantity;
         this.calories = calories;
     }
 
-    public int getFoodID(){
+    public int getFoodID() {
 
         return foodID;
     }
+
     public String getName() {
 
         return name;

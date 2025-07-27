@@ -1,35 +1,84 @@
 package org.Handlers.UI;
 
-import javax.swing.*;
-import java.awt.*;
-import java.time.Duration;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SpinnerDateModel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 
 import org.Dao.FoodNameDAO;
-import org.Entity.*;
-import org.Enums.*;
+import org.Entity.AlignmentScore;
+import org.Entity.DateRange;
+import org.Entity.Food;
+import org.Entity.FoodGroupStats;
+import org.Entity.FoodName;
+import org.Entity.Meal;
+import org.Entity.NutrientChangeStats;
+import org.Entity.NutrientStats;
+import org.Entity.Profile;
+import org.Entity.ProgressStatus;
+import org.Entity.SwapRequest;
+import org.Entity.TrendResult;
+import org.Entity.VisualizationOps;
+import org.Enums.CFGVersion;
+import org.Enums.ChartType;
+import org.Enums.NutrientType;
+import org.Enums.Sex;
 import org.Handlers.Controller.MealManager;
 import org.Handlers.Controller.ProfileManager;
 import org.Handlers.Database.DataLoader;
 import org.Handlers.Database.DatabaseFoodNameDAO;
-import org.Handlers.Database.ExerciseLog;
 import org.Handlers.Database.IntakeLog;
-import org.Handlers.Logic.*;
+import org.Handlers.Logic.Analyzer;
+import org.Handlers.Logic.AnalyzerFactory;
+import org.Handlers.Logic.CFGComparer;
+import org.Handlers.Logic.DatabaseNutrientLookup;
+import org.Handlers.Logic.NutrientAnalyzer;
+import org.Handlers.Logic.NutrientCalculator;
+import org.Handlers.Logic.SwapEngine;
+import org.Handlers.Logic.SwapTracker;
 import org.Handlers.Visual.TrendChartFactory;
 import org.Handlers.Visual.Visualizer;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
-import org.Enums.ChartType;
 
 public class MainUI {
 
     private static final ProfileManager profileManager = ProfileManager.getInstance();
     private static final MealManager mealManager = MealManager.getInstance();
     private static final IntakeLog intakeLog = new IntakeLog();
-    private static final ExerciseLog exerciseLog = new ExerciseLog();
     private static final SwapEngine swapEngine = new SwapEngine();
     private static final SwapTracker swapTracker = new SwapTracker();
     private static final CFGComparer cfgComparer = new CFGComparer();
@@ -69,6 +118,7 @@ public class MainUI {
         tabs.addTab("Swaps", buildSwapTab());
         tabs.addTab("Analysis", buildAnalysisTab());
         tabs.addTab("Swap Compare", buildSwapCompareTab());
+        tabs.addTab("Journal", buildJournalTab());
 
         for (int i = 2; i < tabs.getTabCount(); i++) {
 
@@ -203,25 +253,31 @@ public class MainUI {
     private static JPanel buildProfileTab() {
         JPanel panel = new JPanel(new FlowLayout());
 
-        JButton infoBtn = new JButton("View Profile Info");
-        JButton setGoalBtn = new JButton("Set Nutrient Goals");
+        JButton viewProfileBtn = new JButton("View Profile Info");
+        viewProfileBtn.addActionListener(e -> {
+            if (currentUser == null) {
+                showError(panel, "Please log in first.");
+                return;
+            }
+            String profileDetails = currentUser.toString() + "\nBMI: "
+                    + String.format("%.2f", currentUser.calculateBMI());
+            JOptionPane.showMessageDialog(panel, profileDetails, "Profile Info", JOptionPane.INFORMATION_MESSAGE);
+        });
 
-        JButton progressBtn = new JButton("View Progress");
-        progressBtn.addActionListener(e -> showProgressDialog());
-        panel.add(progressBtn);
+        JButton nutrientBreakdownBtn = new JButton("Show Nutrient Breakdown (Today)");
+        nutrientBreakdownBtn.addActionListener(e -> showNutrientBreakdown(panel));
 
-        infoBtn.addActionListener(e -> JOptionPane.showMessageDialog(panel, currentUser.toString()));
+        JButton editProfileBtn = new JButton("Edit Profile Info");
+        editProfileBtn.addActionListener(e -> showEditProfileDialog(panel));
 
-        setGoalBtn.addActionListener(e -> openGoalDialog(panel));
-
-        panel.add(infoBtn);
-        panel.add(setGoalBtn);
+        panel.add(viewProfileBtn);
+        panel.add(nutrientBreakdownBtn);
+        panel.add(editProfileBtn);
 
         return panel;
     }
 
     private static List<JComboBox<FoodName>> allFoodDropdowns = new ArrayList<>();
-
 
     private static void openGoalDialog(Component parent) {
         JDialog dialog = new JDialog(mainFrame, "Set Nutrient Goals", true);
@@ -238,32 +294,41 @@ public class MainUI {
 
         JButton saveBtn = new JButton("Save Goals");
 
-        //Nutrient #1
-        gbc.gridx = 0; gbc.gridy = 0;
+        // Nutrient #1
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         dialog.add(new JLabel("Nutrient #1:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 0;
+        gbc.gridx = 1;
+        gbc.gridy = 0;
         dialog.add(nutrientBox1, gbc);
 
         // Goal #1
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         dialog.add(new JLabel("Goal Amount (g or mg):"), gbc);
-        gbc.gridx = 1; gbc.gridy = 1;
+        gbc.gridx = 1;
+        gbc.gridy = 1;
         dialog.add(valueField1, gbc);
 
         // Nutrient #2
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
         dialog.add(new JLabel("Nutrient #2 (optional):"), gbc);
-        gbc.gridx = 1; gbc.gridy = 2;
+        gbc.gridx = 1;
+        gbc.gridy = 2;
         dialog.add(nutrientBox2, gbc);
 
         // Goal #2
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.gridy = 3;
         dialog.add(new JLabel("Goal Amount (optional):"), gbc);
-        gbc.gridx = 1; gbc.gridy = 3;
+        gbc.gridx = 1;
+        gbc.gridy = 3;
         dialog.add(valueField2, gbc);
 
         // Save button
-        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.gridx = 0;
+        gbc.gridy = 4;
         gbc.gridwidth = 2;
         dialog.add(saveBtn, gbc);
 
@@ -300,7 +365,6 @@ public class MainUI {
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
     }
-
 
     private static void showProgressDialog() {
         List<Meal> meals = mealManager.getMeals(currentUser.getUserID());
@@ -341,190 +405,190 @@ public class MainUI {
     }
 
     private static Color getProgressColor(double percentage) {
-        if (percentage < 50) return Color.RED;
-        else if (percentage < 90) return Color.ORANGE;
-        else return new Color(0, 153, 0); // Green
+        if (percentage < 50)
+            return Color.RED;
+        else if (percentage < 90)
+            return Color.ORANGE;
+        else
+            return new Color(0, 153, 0); // Green
     }
 
+    private static void showEditProfileDialog(Component parent) {
+        if (currentUser == null) {
+            showError(parent, "Please log in first.");
+            return;
+        }
+
+        JTextField ageInput = new JTextField(String.valueOf(currentUser.getAge()));
+        JTextField weightInput = new JTextField(String.valueOf(currentUser.getWeight()));
+        JTextField heightInput = new JTextField(String.valueOf(currentUser.getHeight()));
+
+        JPanel formPanel = new JPanel(new GridLayout(0, 2));
+        formPanel.add(new JLabel("Age:"));
+        formPanel.add(ageInput);
+        formPanel.add(new JLabel("Weight (kg):"));
+        formPanel.add(weightInput);
+        formPanel.add(new JLabel("Height (cm):"));
+        formPanel.add(heightInput);
+
+        int choice = JOptionPane.showConfirmDialog(parent, formPanel, "Edit Profile", JOptionPane.OK_CANCEL_OPTION);
+
+        if (choice == JOptionPane.OK_OPTION) {
+            try {
+                int age = Integer.parseInt(ageInput.getText());
+                double weight = Double.parseDouble(weightInput.getText());
+                double height = Double.parseDouble(heightInput.getText());
+
+                LocalDate dob = LocalDate.now().minusYears(age);
+                currentUser.setDob(dob);
+
+                currentUser.setWeight(weight);
+                currentUser.setHeight(height);
+
+                double bmi = currentUser.calculateBMI();
+
+                JOptionPane.showMessageDialog(parent,
+                        "Profile updated successfully!\nNew BMI: " + String.format("%.2f", bmi),
+                        "Success", JOptionPane.INFORMATION_MESSAGE);
+
+            } catch (NumberFormatException ex) {
+                showError(parent, "Invalid input. Please enter numeric values.");
+            }
+        }
+    }
 
     private static JPanel buildMealTab() {
-
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-
-        JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(scrollPane, BorderLayout.CENTER);
-
-        // Clear previous dropdowns
-        allFoodDropdowns.clear();
+        JPanel panel = new JPanel(new FlowLayout());
 
         JComboBox<FoodName> foodDropdown = new JComboBox<>();
-        allFoodDropdowns.add(foodDropdown);
+        JComboBox<String> mealTypeDropdown = new JComboBox<>(new String[] { "Breakfast", "Lunch", "Dinner", "Snack" });
+        JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
+        dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));
+        JTextField quantityField = new JTextField(5);
 
-        JButton logButton = new JButton("Log Meal");
-        JButton addMoreFoods = new JButton("Add More Foods");
+        JButton logButton = new JButton("Log Selected Food");
 
         try {
-
             FoodNameDAO foodDao = new DatabaseFoodNameDAO();
             List<FoodName> foods = foodDao.getAllFoodNames();
             if (foods.isEmpty()) {
                 System.out.println("No foods found.");
             } else {
-
                 for (FoodName f : foods) {
                     foodDropdown.addItem(f);
                 }
             }
         } catch (Exception e) {
-
             e.printStackTrace();
-            showError(contentPanel, "Failed to load food list.");
+            showError(panel, "Failed to load food list.");
         }
 
         logButton.addActionListener(e -> {
             if (currentUser == null) {
-                showError(contentPanel, "Please log in first.");
+                showError(panel, "Please log in first.");
                 return;
             }
 
-            // Collect all selected foods
-            Meal meal = new Meal.Builder().withDate(LocalDate.now()).build();
-            StringBuilder loggedFoods = new StringBuilder();
+            FoodName selected = (FoodName) foodDropdown.getSelectedItem();
+            if (selected == null) {
+                showError(panel, "No food selected.");
+                return;
+            }
 
-            for (JComboBox<FoodName> dropdown : allFoodDropdowns) {
-                FoodName selected = (FoodName) dropdown.getSelectedItem();
-                if (selected != null) {
-                    meal.addItem(new Food(selected.getFoodId(), selected.getFoodDescription(), 1, 100));
-                    if (loggedFoods.length() > 0) {
-                        loggedFoods.append(", ");
-                    }
-                    loggedFoods.append(selected.getFoodDescription());
+            String mealType = (String) mealTypeDropdown.getSelectedItem();
+            LocalDate date = ((Date) dateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
+            double quantity;
+            try {
+                quantity = Double.parseDouble(quantityField.getText());
+                if (quantity <= 0) {
+                    showError(panel, "Quantity must be greater than 0.");
+                    return;
                 }
-            }
-
-            if (loggedFoods.length() == 0) {
-                showError(contentPanel, "No foods selected.");
+            } catch (NumberFormatException ex) {
+                showError(panel, "Invalid quantity.");
                 return;
             }
 
+            List<Meal> mealsOnDate = intakeLog.getMealsBetween(currentUser.getUserID(), new DateRange(date, date));
+            boolean alreadyLogged = mealsOnDate.stream()
+                    .anyMatch(m -> m.getType().equalsIgnoreCase(mealType) && !mealType.equalsIgnoreCase("Snack"));
+
+            if (alreadyLogged) {
+                showError(panel, "You already logged " + mealType + " for this date.");
+                return;
+            }
+
+            Meal meal = new Meal.Builder().withDate(date).withType(mealType).build();
+
+            Food food = new Food(
+                    selected.getFoodId(),
+                    selected.getFoodDescription(),
+                    quantity, quantity * (selected.getCaloriesPer100g() / 100));
+
+            meal.addItem(food);
             intakeLog.saveMeal(currentUser.getUserID(), meal);
 
-            JOptionPane.showMessageDialog(contentPanel, "Meal logged: " + loggedFoods.toString());
+            JOptionPane.showMessageDialog(panel, "Meal logged: " + selected.getFoodDescription());
         });
 
-        addMoreFoods.addActionListener(e -> {
-            try {
-                // Create new dropdown
-                JComboBox<FoodName> newFoodDropdown = new JComboBox<>();
-
-                // Populate with same foods
-                FoodNameDAO foodDao = new DatabaseFoodNameDAO();
-                List<FoodName> foods = foodDao.getAllFoodNames();
-                for (FoodName f : foods) {
-                    newFoodDropdown.addItem(f);
-                }
-
-                // Add to our list
-                allFoodDropdowns.add(newFoodDropdown);
-
-                // Create new row panel for the food selection
-                JPanel foodRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-                foodRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-                foodRow.add(new JLabel("Select Food:"));
-                foodRow.add(newFoodDropdown);
-
-                // Add remove button (since this is not the first row)
-                JButton removeButton = new JButton("Remove Food");
-                removeButton.addActionListener(removeEvent -> {
-                    allFoodDropdowns.remove(newFoodDropdown);
-                    contentPanel.remove(foodRow);
-                    contentPanel.revalidate();
-                    contentPanel.repaint();
-                });
-                foodRow.add(removeButton);
-
-                // Remove button panel and re-add at the end
-                Component buttonPanel = contentPanel.getComponent(contentPanel.getComponentCount() - 1);
-                contentPanel.remove(buttonPanel);
-
-                // Add new food row
-                contentPanel.add(foodRow);
-
-                // Re-add button panel
-                contentPanel.add(buttonPanel);
-
-                contentPanel.revalidate();
-                contentPanel.repaint();
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                showError(contentPanel, "Failed to add new food selection.");
-            }
-        });
-
-        // Create first food selection row (no remove button)
-        JPanel firstFoodRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        firstFoodRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-        firstFoodRow.add(new JLabel("Select Food:"));
-        firstFoodRow.add(foodDropdown);
-        contentPanel.add(firstFoodRow);
-
-        // Create button row
-        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        buttonRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        buttonRow.add(logButton);
-        buttonRow.add(addMoreFoods);
-        contentPanel.add(buttonRow);
+        panel.add(new JLabel("Select Date:"));
+        panel.add(dateSpinner);
+        panel.add(new JLabel("Meal Type:"));
+        panel.add(mealTypeDropdown);
+        panel.add(new JLabel("Select Food:"));
+        panel.add(foodDropdown);
+        panel.add(new JLabel("Quantity (g):"));
+        panel.add(quantityField);
+        panel.add(logButton);
 
         return panel;
     }
 
-//    private static void handleMealLogging(Component parent) {
-//
-//        if (currentUser == null) {
-//
-//            showError(parent, "Please log in first.");
-//
-//            return;
-//        }
-//
-//        Meal meal = new Meal.Builder().withDate(LocalDate.now()).build();
-//        meal.addItem(new Food(114, "Milk, fluid, skim", 1, 34));
-//        intakeLog.saveMeal(currentUser.getUserID(), meal);
-//
-//        Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));
-//        exerciseLog.saveSession(run);
-//
-//        NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
-//        Map<NutrientType, Double> nutMap = calc.calculate(meal);
-//
-//        Map<String, Double> stringMap = new HashMap<>();
-//
-//        for (Map.Entry<NutrientType, Double> entry : nutMap.entrySet()) {
-//
-//            if (entry.getValue() > 0) {
-//
-//                stringMap.put(entry.getKey().name(), entry.getValue());
-//            }
-//        }
-//
-//        ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal Nutrient Breakdown");
-//
-//        JFrame chartFrame = new JFrame("Nutrient Pie Chart");
-//
-//        chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-//        chartFrame.add(chartPanel);
-//        chartFrame.pack();
-//        chartFrame.setLocationRelativeTo(parent);
-//        chartFrame.setVisible(true);
-//
-//        JOptionPane.showMessageDialog(parent, "The meal and exercise are logged.");
-//    }
+    // private static void handleMealLogging(Component parent) {
+    //
+    // if (currentUser == null) {
+    //
+    // showError(parent, "Please log in first.");
+    //
+    // return;
+    // }
+    //
+    // Meal meal = new Meal.Builder().withDate(LocalDate.now()).build();
+    // meal.addItem(new Food(114, "Milk, fluid, skim", 1, 34));
+    // intakeLog.saveMeal(currentUser.getUserID(), meal);
+    //
+    // Exercise run = new Exercise(LocalDate.now(), "Running",
+    // Duration.ofMinutes(30));
+    // exerciseLog.saveSession(run);
+    //
+    // NutrientCalculator calc = new NutrientCalculator(new
+    // DatabaseNutrientLookup());
+    // Map<NutrientType, Double> nutMap = calc.calculate(meal);
+    //
+    // Map<String, Double> stringMap = new HashMap<>();
+    //
+    // for (Map.Entry<NutrientType, Double> entry : nutMap.entrySet()) {
+    //
+    // if (entry.getValue() > 0) {
+    //
+    // stringMap.put(entry.getKey().name(), entry.getValue());
+    // }
+    // }
+    //
+    // ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal
+    // Nutrient Breakdown");
+    //
+    // JFrame chartFrame = new JFrame("Nutrient Pie Chart");
+    //
+    // chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    // chartFrame.add(chartPanel);
+    // chartFrame.pack();
+    // chartFrame.setLocationRelativeTo(parent);
+    // chartFrame.setVisible(true);
+    //
+    // JOptionPane.showMessageDialog(parent, "The meal and exercise are logged.");
+    // }
 
     private static JPanel buildSwapTab() {
 
@@ -635,6 +699,95 @@ public class MainUI {
 
         panel.add(loadComparisonButton, BorderLayout.NORTH);
         panel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private static void showNutrientBreakdown(Component parent) {
+        if (currentUser == null) {
+            showError(parent, "Please log in first.");
+            return;
+        }
+
+        DateRange today = new DateRange(LocalDate.now(), LocalDate.now());
+        List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), today);
+
+        if (meals == null || meals.isEmpty()) {
+            showError(parent, "No meals found for today.");
+            return;
+        }
+
+        NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
+        Map<NutrientType, Double> nutrientMap = new HashMap<>();
+
+        for (Meal meal : meals) {
+            Map<NutrientType, Double> mealMap = calc.calculate(meal);
+            for (Map.Entry<NutrientType, Double> entry : mealMap.entrySet()) {
+                nutrientMap.merge(entry.getKey(), entry.getValue(), Double::sum);
+            }
+        }
+
+        double protein = nutrientMap.getOrDefault(NutrientType.Protein, 0.0);
+        double carbs = nutrientMap.getOrDefault(NutrientType.Carbohydrate, 0.0);
+        double fat = nutrientMap.getOrDefault(NutrientType.Fat, 0.0);
+        double estimatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
+
+        StringBuilder breakdown = new StringBuilder("Today's Nutrient Breakdown:\n\n");
+        for (NutrientType type : NutrientType.values()) {
+            double value = nutrientMap.getOrDefault(type, 0.0);
+            breakdown.append(type.name()).append(": ").append(String.format("%.2f", value)).append("\n");
+        }
+        breakdown.append("\nEstimated Calories: ").append(String.format("%.2f", estimatedCalories)).append(" kcal");
+
+        JOptionPane.showMessageDialog(parent, breakdown.toString(), "Nutrient Breakdown",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private static JPanel buildJournalTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JTextArea journalArea = new JTextArea();
+        journalArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(journalArea);
+
+        JButton refreshBtn = new JButton("Load Journal");
+        refreshBtn.addActionListener(e -> {
+            if (currentUser == null) {
+                showError(panel, "Please log in first.");
+                return;
+            }
+
+            List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
+            if (meals == null || meals.isEmpty()) {
+                showError(panel, "No meals logged yet.");
+                return;
+            }
+
+            StringBuilder sb = new StringBuilder("Your Meal Journal:\n\n");
+            NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
+
+            for (Meal meal : meals) {
+                sb.append("Date: ").append(meal.getDate()).append("\n");
+                sb.append("Items:\n");
+                for (Food item : meal.getItems()) {
+                    sb.append(" - ").append(item.getName())
+                            .append(" (").append(item.getQuantity()).append("g)\n");
+                }
+
+                Map<NutrientType, Double> nutrientMap = calc.calculate(meal);
+
+                double protein = nutrientMap.getOrDefault(NutrientType.Protein, 0.0);
+                double carbs = nutrientMap.getOrDefault(NutrientType.Carbohydrate, 0.0);
+                double fat = nutrientMap.getOrDefault(NutrientType.Fat, 0.0);
+
+                double estimatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
+                sb.append("Estimated Calories: ").append(String.format("%.2f", estimatedCalories)).append(" kcal\n\n");
+
+            }
+
+            journalArea.setText(sb.toString());
+        });
+
+        panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(refreshBtn, BorderLayout.SOUTH);
         return panel;
     }
 

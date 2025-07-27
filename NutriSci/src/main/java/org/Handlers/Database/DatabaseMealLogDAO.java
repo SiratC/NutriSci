@@ -16,16 +16,17 @@ import org.Entity.Meal;
 
 public class DatabaseMealLogDAO implements MealLogDAO {
     @Override
-    public UUID insertMeal(UUID profileId, List<Food> foods) throws SQLException {
+    public UUID insertMeal(UUID profileId, String type, List<Food> foods) throws SQLException {
         String sql = """
                 INSERT INTO MealLogs
-                  (profileId)
-                VALUES (?)
+                  (profileId, type)
+                VALUES (?, ?)
                 RETURNING id
                 """;
         try (Connection conn = DatabaseConnection.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, profileId);
+            ps.setString(2, type);
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) { // Move cursor to first row
@@ -35,13 +36,14 @@ public class DatabaseMealLogDAO implements MealLogDAO {
                 foods.forEach(food -> {
                     String foodSql = """
                             INSERT INTO MealLogFoods
-                              (logId, foodId)
-                            VALUES (?, ?)
+                              (logId, foodId, quantity)
+                            VALUES (?, ?, ?)
                             ON CONFLICT DO NOTHING
                             """;
                     try (PreparedStatement foodPs = conn.prepareStatement(foodSql)) {
                         foodPs.setObject(1, mealLogId);
                         foodPs.setInt(2, food.getFoodID());
+                        foodPs.setDouble(3, food.getQuantity());
                         foodPs.executeUpdate();
                     } catch (SQLException e) {
                         e.printStackTrace();
@@ -72,7 +74,8 @@ public class DatabaseMealLogDAO implements MealLogDAO {
             while (rs.next()) {
                 UUID mealId = rs.getObject("id", UUID.class);
                 Meal.Builder builder = new Meal.Builder();
-                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId);
+                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId)
+                        .withType(rs.getString("type"));
 
                 List<Food> foods = getAllFoodsByMealId(mealId);
                 foods.forEach(builder::add);
@@ -86,7 +89,7 @@ public class DatabaseMealLogDAO implements MealLogDAO {
     @Override
     public List<Food> getAllFoodsByMealId(UUID mealId) throws SQLException {
         String sql = """
-                SELECT f.* FROM MealLogFoods ml
+                SELECT f.*, ml.* FROM MealLogFoods ml
                 JOIN FoodName f ON ml.foodId = f.foodId
                 WHERE ml.logId = ?
                 """;
@@ -98,8 +101,12 @@ public class DatabaseMealLogDAO implements MealLogDAO {
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                Food food = new Food(rs.getInt("foodId"), rs.getString("foodDescription"), 100,
-                        rs.getInt("caloriesPer100g"));
+                double quantity = rs.getDouble("quantity");
+                double caloriesPer100g = rs.getDouble("caloriesPer100g");
+                double calories = quantity * (caloriesPer100g / 100.0);
+
+                Food food = new Food(rs.getInt("foodId"), rs.getString("foodDescription"),
+                        quantity, calories);
                 foods.add(food);
             }
         }
@@ -129,7 +136,8 @@ public class DatabaseMealLogDAO implements MealLogDAO {
 
             if (rs.next()) {
                 Meal.Builder builder = new Meal.Builder();
-                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId);
+                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId)
+                        .withType(rs.getString("type"));
 
                 List<Food> foods = getAllFoodsByMealId(mealId);
                 foods.forEach(builder::add);
@@ -159,7 +167,8 @@ public class DatabaseMealLogDAO implements MealLogDAO {
             while (rs.next()) {
                 UUID mealId = rs.getObject("id", UUID.class);
                 Meal.Builder builder = new Meal.Builder();
-                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId);
+                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId)
+                        .withType(rs.getString("type"));
 
                 List<Food> foods = getAllFoodsByMealId(mealId);
                 foods.forEach(builder::add);
@@ -187,7 +196,8 @@ public class DatabaseMealLogDAO implements MealLogDAO {
             while (rs.next()) {
                 UUID mealId = rs.getObject("id", UUID.class);
                 Meal.Builder builder = new Meal.Builder();
-                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId);
+                builder.withDate(rs.getObject("createdAt", java.time.LocalDate.class)).withId(mealId)
+                        .withType(rs.getString("type"));
 
                 List<Food> foods = getAllFoodsByMealId(mealId);
                 foods.forEach(builder::add);
