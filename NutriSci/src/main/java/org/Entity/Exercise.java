@@ -16,14 +16,21 @@ public class Exercise {
         this.duration = duration;
     }
 
-    public LocalDate getDate(){
+    public LocalDate getDate() {
         return this.date;
     }
-    public String getType(){
+
+    public String getType() {
         return this.type;
     }
 
-    public Duration getDuration(){
+    public Duration getDuration() {
         return this.duration;
+    }
+
+    @Override
+    public String toString() {
+
+        return date + " - " + type + " for " + duration.toMinutes() + " min";
     }
 }

@@ -4,4 +4,5 @@ public enum FoodGroup {
     Vegetables,
     Fruit,
     Protein,
-    Dairy }
+    Dairy,
+    Other}

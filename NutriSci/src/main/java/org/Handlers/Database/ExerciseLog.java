@@ -1,7 +1,6 @@
 package org.Handlers.Database;
 
 import org.Entity.Exercise;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;

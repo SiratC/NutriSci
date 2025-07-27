@@ -7,3 +7,4 @@ public enum NutrientType {
     Fiber,
     Other
 }
+
