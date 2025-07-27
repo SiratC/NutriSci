@@ -7,11 +7,12 @@ import java.util.List;
 import java.util.UUID;
 
 public class Meal {
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
     private final LocalDate date;
     private final List<Food> items = new ArrayList<>();
 
-    public Meal(LocalDate date) {
+    public Meal(UUID id, LocalDate date) {
+        this.id = id;
         this.date = date;
     }
 
@@ -45,8 +46,14 @@ public class Meal {
     }
 
     public static class Builder {
+        private UUID id;
         private LocalDate date;
         private final List<Food> items = new ArrayList<>();
+
+        public Builder withId(UUID id) {
+            this.id = id;
+            return this;
+        }
 
         public Builder withDate(LocalDate date) {
             this.date = date;
@@ -59,10 +66,10 @@ public class Meal {
         }
 
         public Meal build() {
-            Meal meal = new Meal(date);
-            for (Food food : items) meal.addItem(food);
+            Meal meal = new Meal(id, date);
+            for (Food food : items)
+                meal.addItem(food);
             return meal;
         }
     }
 }
-

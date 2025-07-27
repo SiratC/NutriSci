@@ -1,4 +1,5 @@
 package org.Handlers.UI;
+
 import javax.swing.*;
 import java.awt.*;
 import java.time.Duration;
@@ -22,7 +23,6 @@ import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.Enums.ChartType;
 
-
 public class MainUI {
 
     private static final ProfileManager profileManager = ProfileManager.getInstance();
@@ -34,7 +34,6 @@ public class MainUI {
     private static final AnalyzerFactory analyzerFactory = new AnalyzerFactory();
 
     private static Profile currentUser;
-    private static final Map<String, Profile> mockUserDB = new HashMap<>();
     private static JFrame mainFrame;
     private static JTabbedPane tabs;
 
@@ -117,17 +116,8 @@ public class MainUI {
                 return;
             }
 
-            Profile existing = mockUserDB.get(username);
-
-            if (existing != null) {
-
-                if (!existing.getPassword().equals(password)) {
-
-                    showError(panel, "Incorrect password.");
-
-                    return;
-                }
-                currentUser = existing;
+            if (profileManager.authenticate(username, password)) {
+                currentUser = profileManager.loadProfileByName(username);
                 JOptionPane.showMessageDialog(panel, "Welcome, " + currentUser.getName());
 
                 for (int i = 2; i < tabs.getTabCount(); i++) {
@@ -135,9 +125,7 @@ public class MainUI {
                     tabs.setEnabledAt(i, true);
                 }
                 tabs.setSelectedIndex(2);
-            }
-
-            else {
+            } else {
 
                 showError(panel, "User not registered. Please register first.");
             }
@@ -184,19 +172,22 @@ public class MainUI {
                 return;
             }
 
-            if (mockUserDB.containsKey(username)) {
-                showError(panel, "User already exists.");
-
-                return;
-            }
-
             UUID id = UUID.randomUUID();
             LocalDateTime now = LocalDateTime.now();
-            Profile profile = new Profile(id, username, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70, "metric", now, now);
-            profile.setPassword(password);
+            Profile profile = new Profile(id, username, password, Sex.Other, LocalDate.of(1990, 1, 1), 170, 70,
+                    "metric", now, now);
 
-            mockUserDB.put(username, profile);
-            profileManager.saveProfile(profile);
+            try {
+                if (profileManager.loadProfileByName(username) != null) {
+                    showError(panel, "Username already exists. Please choose another.");
+                    return;
+                }
+
+                profileManager.saveProfile(profile);
+            } catch (Exception ex) {
+                showError(panel, "Error saving profile: " + ex.getMessage());
+                return;
+            }
 
             JOptionPane.showMessageDialog(panel, "Registered profile for: " + username + "\nYou can now log in.");
             tabs.setSelectedIndex(0);
@@ -214,13 +205,28 @@ public class MainUI {
         return panel;
     }
 
+    private static List<JComboBox<FoodName>> allFoodDropdowns = new ArrayList<>();
+
     private static JPanel buildMealTab() {
 
-        JPanel panel = new JPanel(new FlowLayout());
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Clear previous dropdowns
+        allFoodDropdowns.clear();
 
         JComboBox<FoodName> foodDropdown = new JComboBox<>();
+        allFoodDropdowns.add(foodDropdown);
 
-        JButton logButton = new JButton("Log Selected Food");
+        JButton logButton = new JButton("Log Meal");
+        JButton addMoreFoods = new JButton("Add More Foods");
 
         try {
 
@@ -228,45 +234,112 @@ public class MainUI {
             List<FoodName> foods = foodDao.getAllFoodNames();
             if (foods.isEmpty()) {
                 System.out.println("No foods found.");
-            }
-            else {
+            } else {
 
                 for (FoodName f : foods) {
                     foodDropdown.addItem(f);
                 }
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
 
             e.printStackTrace();
-            showError(panel, "Failed to load food list.");
+            showError(contentPanel, "Failed to load food list.");
         }
 
         logButton.addActionListener(e -> {
             if (currentUser == null) {
-                showError(panel, "Please log in first.");
-
+                showError(contentPanel, "Please log in first.");
                 return;
             }
 
-            FoodName selected = (FoodName) foodDropdown.getSelectedItem();
-            if (selected == null) {
-                showError(panel, "No food selected.");
+            // Collect all selected foods
+            Meal meal = new Meal.Builder().withDate(LocalDate.now()).build();
+            StringBuilder loggedFoods = new StringBuilder();
 
-                return;
+            for (JComboBox<FoodName> dropdown : allFoodDropdowns) {
+                FoodName selected = (FoodName) dropdown.getSelectedItem();
+                if (selected != null) {
+                    meal.addItem(new Food(selected.getFoodId(), selected.getFoodDescription(), 1, 100));
+                    if (loggedFoods.length() > 0) {
+                        loggedFoods.append(", ");
+                    }
+                    loggedFoods.append(selected.getFoodDescription());
+                }
             }
 
-            Meal meal = new Meal(LocalDate.now());
-            meal.addItem( new Food(selected.getFoodId(), selected.getFoodDescription(), 1, 100));
+            if (loggedFoods.length() == 0) {
+                showError(contentPanel, "No foods selected.");
+                return;
+            }
 
             intakeLog.saveMeal(currentUser.getUserID(), meal);
 
-            JOptionPane.showMessageDialog(panel, "Meal logged: " + selected.getFoodDescription());
+            JOptionPane.showMessageDialog(contentPanel, "Meal logged: " + loggedFoods.toString());
         });
 
-        panel.add(new JLabel("Select Food:"));
-        panel.add(foodDropdown);
-        panel.add(logButton);
+        addMoreFoods.addActionListener(e -> {
+            try {
+                // Create new dropdown
+                JComboBox<FoodName> newFoodDropdown = new JComboBox<>();
+
+                // Populate with same foods
+                FoodNameDAO foodDao = new DatabaseFoodNameDAO();
+                List<FoodName> foods = foodDao.getAllFoodNames();
+                for (FoodName f : foods) {
+                    newFoodDropdown.addItem(f);
+                }
+
+                // Add to our list
+                allFoodDropdowns.add(newFoodDropdown);
+
+                // Create new row panel for the food selection
+                JPanel foodRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+                foodRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+                foodRow.add(new JLabel("Select Food:"));
+                foodRow.add(newFoodDropdown);
+
+                // Add remove button (since this is not the first row)
+                JButton removeButton = new JButton("Remove Food");
+                removeButton.addActionListener(removeEvent -> {
+                    allFoodDropdowns.remove(newFoodDropdown);
+                    contentPanel.remove(foodRow);
+                    contentPanel.revalidate();
+                    contentPanel.repaint();
+                });
+                foodRow.add(removeButton);
+
+                // Remove button panel and re-add at the end
+                Component buttonPanel = contentPanel.getComponent(contentPanel.getComponentCount() - 1);
+                contentPanel.remove(buttonPanel);
+
+                // Add new food row
+                contentPanel.add(foodRow);
+
+                // Re-add button panel
+                contentPanel.add(buttonPanel);
+
+                contentPanel.revalidate();
+                contentPanel.repaint();
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                showError(contentPanel, "Failed to add new food selection.");
+            }
+        });
+
+        // Create first food selection row (no remove button)
+        JPanel firstFoodRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        firstFoodRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        firstFoodRow.add(new JLabel("Select Food:"));
+        firstFoodRow.add(foodDropdown);
+        contentPanel.add(firstFoodRow);
+
+        // Create button row
+        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        buttonRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        buttonRow.add(logButton);
+        buttonRow.add(addMoreFoods);
+        contentPanel.add(buttonRow);
 
         return panel;
     }
@@ -280,7 +353,7 @@ public class MainUI {
             return;
         }
 
-        Meal meal = new Meal(LocalDate.now());
+        Meal meal = new Meal.Builder().withDate(LocalDate.now()).build();
         meal.addItem(new Food(114, "Milk, fluid, skim", 1, 34));
         intakeLog.saveMeal(currentUser.getUserID(), meal);
 
@@ -377,7 +450,8 @@ public class MainUI {
             TrendResult result = trendAnalyzer.analyze(meals);
             System.out.println("[TrendAnalyzer] Meals: " + result);
 
-            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(), false);
+            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(),
+                    false);
             ChartType selectedType = ops.getChartType();
             ChartPanel chartPanel;
 
@@ -423,7 +497,8 @@ public class MainUI {
             NutrientChangeStats result = swapTracker.analyze(meals);
             System.out.println("[SwapTracker] Results: " + result);
 
-            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(), false);
+            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(),
+                    false);
             Visualizer visualizer = new Visualizer();
             Map<String, Map<String, Double>> chartData = visualizer.convertToChartData(result, ops);
 
@@ -531,7 +606,8 @@ public class MainUI {
             NutrientStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
             System.out.println("[NutrientAnalyzer] Top 3 Nutrients: " + result.getTopNutrients());
 
-            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(), false);
+            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(),
+                    false);
             Visualizer visualizer = new Visualizer();
             Map<String, Double> chartData = visualizer.convertToChartData(result, ops);
 
@@ -541,8 +617,10 @@ public class MainUI {
             switch (selectedType) {
 
                 case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "Nutrient Analyzer Pie View");
-                case BAR -> chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Nutrient Analyzer Bar View");
-                case LINE -> chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Nutrient Analyzer Line View");
+                case BAR ->
+                    chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Nutrient Analyzer Bar View");
+                case LINE ->
+                    chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Nutrient Analyzer Line View");
                 default -> {
                     showError(panel, "Invalid chart type.");
 
@@ -559,7 +637,6 @@ public class MainUI {
 
         });
 
-
         panel.add(btnTrend);
         panel.add(btnSwapTrack);
         panel.add(btnFG);
@@ -569,11 +646,8 @@ public class MainUI {
         return panel;
     }
 
-
     private static void showError(Component parent, String msg) {
 
         JOptionPane.showMessageDialog(parent, "Error:  " + msg, "", JOptionPane.ERROR_MESSAGE);
     }
 }
-
-

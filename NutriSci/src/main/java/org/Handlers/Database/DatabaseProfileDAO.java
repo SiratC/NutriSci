@@ -18,23 +18,23 @@ public class DatabaseProfileDAO implements ProfileDAO {
     @Override
     public void save(Profile profile) {
         String sql = """
-            INSERT INTO Profiles (id, name, sex, dob, height, weight, units, createdAt, modifiedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """;
+                INSERT INTO Profiles (id, name, password, sex, dob, height, weight, units, createdAt, modifiedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setObject(1, profile.getUserID());
             stmt.setString(2, profile.getName());
-            stmt.setString(3, profile.getSex().name());
-            stmt.setDate(4, Date.valueOf(profile.getDob()));
-            stmt.setDouble(5, profile.getHeight());
-            stmt.setDouble(6, profile.getWeight());
-            stmt.setString(7, profile.getUnits());
-            stmt.setTimestamp(8, Timestamp.valueOf(profile.getCreatedAt()));
-            stmt.setTimestamp(9, profile.getModifiedAt() != null ?
-                    Timestamp.valueOf(profile.getModifiedAt()) : null);
+            stmt.setString(3, profile.getPassword());
+            stmt.setString(4, profile.getSex().name());
+            stmt.setDate(5, Date.valueOf(profile.getDob()));
+            stmt.setDouble(6, profile.getHeight());
+            stmt.setDouble(7, profile.getWeight());
+            stmt.setString(8, profile.getUnits());
+            stmt.setTimestamp(9, Timestamp.valueOf(profile.getCreatedAt()));
+            stmt.setTimestamp(10, profile.getModifiedAt() != null ? Timestamp.valueOf(profile.getModifiedAt()) : null);
 
             stmt.executeUpdate();
 
@@ -46,13 +46,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
     @Override
     public void update(Profile profile) {
         String sql = """
-            UPDATE Profiles
-            SET name = ?, sex = ?, dob = ?, height = ?, weight = ?, units = ?, modifiedAt = ?
-            WHERE id = ?
-            """;
+                UPDATE Profiles
+                SET name = ?, sex = ?, dob = ?, height = ?, weight = ?, units = ?, modifiedAt = ?
+                WHERE id = ?
+                """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, profile.getName());
             stmt.setString(2, profile.getSex().name());
@@ -78,7 +78,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "DELETE FROM Profiles WHERE id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setObject(1, id);
 
@@ -97,7 +97,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT * FROM Profiles WHERE id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setObject(1, id);
 
@@ -118,8 +118,8 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT * FROM Profiles ORDER BY createdAt DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
 
             List<Profile> profiles = new ArrayList<>();
             while (rs.next()) {
@@ -135,11 +135,12 @@ public class DatabaseProfileDAO implements ProfileDAO {
     @Override
     public Optional<Profile> findByName(String name) {
         // NOTE: Profile class doesn't have a name field, but database schema does
-        // This method assumes the database has a 'name' column that isn't mapped to the Profile class
+        // This method assumes the database has a 'name' column that isn't mapped to the
+        // Profile class
         String sql = "SELECT * FROM Profiles WHERE name = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, name);
 
@@ -160,7 +161,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT * FROM Profiles WHERE sex = ? ORDER BY dob DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, sex);
 
@@ -182,7 +183,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT * FROM Profiles WHERE units = ? ORDER BY dob DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, units);
 
@@ -202,13 +203,13 @@ public class DatabaseProfileDAO implements ProfileDAO {
     @Override
     public List<Profile> findByAgeRange(int minAge, int maxAge) {
         String sql = """
-            SELECT * FROM Profiles
-            WHERE EXTRACT(YEAR FROM AGE(CURRENT_DATE, dob)) BETWEEN ? AND ?
-            ORDER BY dob DESC
-            """;
+                SELECT * FROM Profiles
+                WHERE EXTRACT(YEAR FROM AGE(CURRENT_DATE, dob)) BETWEEN ? AND ?
+                ORDER BY dob DESC
+                """;
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, minAge);
             stmt.setInt(2, maxAge);
@@ -231,7 +232,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT * FROM Profiles WHERE height BETWEEN ? AND ? ORDER BY height";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setDouble(1, minHeight.doubleValue());
             stmt.setDouble(2, maxHeight.doubleValue());
@@ -254,7 +255,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT * FROM Profiles WHERE weight BETWEEN ? AND ? ORDER BY weight";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setDouble(1, minWeight.doubleValue());
             stmt.setDouble(2, maxWeight.doubleValue());
@@ -278,7 +279,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT COUNT(*) FROM Profiles WHERE name = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, name);
 
@@ -297,7 +298,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
         String sql = "SELECT COUNT(*) FROM Profiles WHERE id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setObject(1, id);
 
@@ -314,6 +315,7 @@ public class DatabaseProfileDAO implements ProfileDAO {
     private Profile mapResultSetToProfile(ResultSet rs) throws SQLException {
         UUID userID = (UUID) rs.getObject("id");
         String name = rs.getString("name");
+        String password = rs.getString("password");
         Sex sex = Sex.valueOf(rs.getString("sex"));
         LocalDate dob = rs.getDate("dob").toLocalDate();
         double height = rs.getDouble("height");
@@ -322,9 +324,8 @@ public class DatabaseProfileDAO implements ProfileDAO {
         LocalDateTime createdAt = rs.getTimestamp("createdAt").toLocalDateTime();
 
         Timestamp modifiedAtTimestamp = rs.getTimestamp("modifiedAt");
-        LocalDateTime modifiedAt = modifiedAtTimestamp != null ?
-                modifiedAtTimestamp.toLocalDateTime() : null;
+        LocalDateTime modifiedAt = modifiedAtTimestamp != null ? modifiedAtTimestamp.toLocalDateTime() : null;
 
-        return new Profile(userID, name, sex, dob, height, weight, units, createdAt, modifiedAt);
+        return new Profile(userID, name, password, sex, dob, height, weight, units, createdAt, modifiedAt);
     }
 }

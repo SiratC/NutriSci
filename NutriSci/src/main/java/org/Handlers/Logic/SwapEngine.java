@@ -1,4 +1,5 @@
 package org.Handlers.Logic;
+
 import org.Dao.*;
 import org.Entity.*;
 import org.Enums.NutrientType;
@@ -22,7 +23,7 @@ public class SwapEngine {
         List<Meal> swappedMeals = new ArrayList<>();
 
         for (Meal meal : meals) {
-            Meal.Builder builder = new Meal.Builder().withDate(meal.getDate());
+            Meal.Builder builder = new Meal.Builder().withDate(meal.getDate()).withId(meal.getId());
 
             for (Food food : meal.getItems()) {
                 // determines nutrient contribution
@@ -56,7 +57,7 @@ public class SwapEngine {
 
             // find foods high in the target nutrient
             List<NutrientAmount> topFoods = new ArrayList<>();
-            for (int id = 100; id <= 8000; id++) { // arbitrary range
+            for (int id = 100; id <= 200; id++) { // arbitrary range
                 List<NutrientAmount> naList = nutrientAmountDAO.findByFoodId(id);
                 for (NutrientAmount na : naList) {
                     if (na.getNutrientNameId() == targetId && na.getNutrientValue().doubleValue() > 5.0) {
@@ -66,7 +67,8 @@ public class SwapEngine {
             }
 
             // sorts by nutrient value
-            topFoods.sort((a, b) -> Double.compare(b.getNutrientValue().doubleValue(), a.getNutrientValue().doubleValue()));
+            topFoods.sort(
+                    (a, b) -> Double.compare(b.getNutrientValue().doubleValue(), a.getNutrientValue().doubleValue()));
 
             for (NutrientAmount na : topFoods) {
 

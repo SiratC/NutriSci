@@ -26,7 +26,7 @@ public class DataLoader {
     private void loadFoodNames(String resource) throws Exception {
         FoodNameDAO foodDao = new DatabaseFoodNameDAO();
 
-        //debug
+        // debug
         InputStream stream = getClass().getClassLoader().getResourceAsStream(resource);
         if (stream == null) {
             throw new RuntimeException("CSV file not found: " + resource);
@@ -37,11 +37,12 @@ public class DataLoader {
             reader.readNext(); // skip header
             String[] line;
             while ((line = reader.readNext()) != null) {
-                int id   = Integer.parseInt(line[0]);
+                int id = Integer.parseInt(line[0]);
                 String desc = line[1];
+                int caloriesPer100g = Integer.parseInt(line[2]);
 
-                System.out.println("Inserting food: " + id + " - " + desc);     //debug
-                foodDao.insertFoodName(new FoodName(id, desc));
+                System.out.println("Inserting food: " + id + " - " + desc); // debug
+                foodDao.insertFoodName(new FoodName(id, desc, caloriesPer100g));
             }
         }
 
@@ -50,7 +51,7 @@ public class DataLoader {
     private void loadNutrientNames(String resource) throws Exception {
         NutrientNameDAO nnDao = new DatabaseNutrientNameDao();
 
-        //debug
+        // debug
         InputStream stream = getClass().getClassLoader().getResourceAsStream(resource);
 
         if (stream == null) {
@@ -62,12 +63,11 @@ public class DataLoader {
             reader.readNext(); // skip header
             String[] line;
             while ((line = reader.readNext()) != null) {
-                int id       = Integer.parseInt(line[0]);
-                String name  = line[1];
-                String unit  = line[2];
+                int id = Integer.parseInt(line[0]);
+                String name = line[1];
+                String unit = line[2];
                 nnDao.insertNutrientName(
-                        new NutrientName(id, name, unit)
-                );
+                        new NutrientName(id, name, unit));
             }
         }
     }
@@ -75,7 +75,7 @@ public class DataLoader {
     private void loadNutrientAmounts(String resource) throws Exception {
         NutrientAmountDAO nutrDao = new DatabaseNutrientAmountDAO();
 
-        //debug
+        // debug
         InputStream stream = getClass().getClassLoader().getResourceAsStream(resource);
 
         if (stream == null) {
@@ -88,15 +88,13 @@ public class DataLoader {
             reader.readNext(); // skip header
             String[] line;
             while ((line = reader.readNext()) != null) {
-                int foodId         = Integer.parseInt(line[0]);
+                int foodId = Integer.parseInt(line[0]);
                 int nutrientNameId = Integer.parseInt(line[1]);
-                BigDecimal value   = new BigDecimal(line[2]);
+                BigDecimal value = new BigDecimal(line[2]);
 
                 nutrDao.insertNutrientAmount(new NutrientAmount(
-                        foodId, nutrientNameId, value
-                ));
+                        foodId, nutrientNameId, value));
             }
         }
     }
 }
-

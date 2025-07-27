@@ -39,9 +39,10 @@ public class DatabaseFoodNameDAO implements FoodNameDAO {
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                int id = rs.getInt("foodid");
-                String desc = rs.getString("fooddescription");
-                result.add(new FoodName(id, desc));
+                int id = rs.getInt("foodId");
+                String desc = rs.getString("foodDescription");
+                int caloriesPer100g = rs.getInt("caloriesPer100g");
+                result.add(new FoodName(id, desc, caloriesPer100g));
             }
         } catch (SQLException e) {
             e.printStackTrace();

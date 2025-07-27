@@ -1,11 +1,11 @@
-FoodID,FoodDescription
-114,"Milk, fluid, skim"
-563,"Chicken, broiler, meat and skin, roasted"
-1696,"Apple, raw, with skin"
-2213,"Spinach, raw"
-2374,"Broccoli, raw"
-2534,"Nuts, almonds, dried, unblanched, unroasted"
-3156,"Fish, salmon, atlantic, wild, baked or broiled"
-4067,"Bread, whole wheat, commercial"
-4497,"Grains, rice, brown, long-grain, cooked"
-5917,"Grains, quinoa, cooked"
+FoodID,FoodDescription,FoodCaloriesPer100g
+114,"Milk, fluid, skim",35
+563,"Chicken, broiler, meat and skin, roasted",222
+1696,"Apple, raw, with skin",52
+2213,"Spinach, raw",23
+2374,"Broccoli, raw",34
+2534,"Nuts, almonds, dried, unblanched, unroasted",578
+3156,"Fish, salmon, atlantic, wild, baked or broiled",171
+4067,"Bread, whole wheat, commercial",246
+4497,"Grains, rice, brown, long-grain, cooked",111
+5917,"Grains, quinoa, cooked",120

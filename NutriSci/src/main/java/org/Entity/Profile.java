@@ -23,9 +23,12 @@ public class Profile {
     private String password;
     private Map<NutrientType, Double> nutrientGoals = new HashMap<>();
 
-    public Profile(UUID userID, String name, Sex sex, LocalDate dob, double height, double weight, String units, LocalDateTime createdAt, LocalDateTime modifiedAt) {
+    public Profile(UUID userID, String name, String password, Sex sex, LocalDate dob, double height, double weight,
+            String units,
+            LocalDateTime createdAt, LocalDateTime modifiedAt) {
         this.userID = userID;
         this.name = name;
+        this.password = password;
         this.sex = sex;
         this.dob = dob;
         this.height = height;
@@ -118,7 +121,7 @@ public class Profile {
         return weightInKg / (heightInMeters * heightInMeters);
     }
 
-     // user login
+    // user login
     public String getPassword() {
         return password;
     }
