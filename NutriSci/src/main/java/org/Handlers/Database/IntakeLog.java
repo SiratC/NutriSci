@@ -13,7 +13,7 @@ public class IntakeLog {
     // save a meal for a specific user
     public void saveMeal(UUID userId, Meal meal) {
         try {
-            mealLogDAO.insertMeal(userId, meal.getItems());
+            mealLogDAO.insertMeal(userId, meal.getType(), meal.getItems());
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS Profiles (
 
 CREATE TABLE IF NOT EXISTS MealLogs (
     id UUID DEFAULT uuid_generate_v4() NOT NULL,
+    type VARCHAR(50) NOT NULL, -- e.g., Breakfast, Lunch, Dinner, Snack
     profileId UUID NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     modifiedAt TIMESTAMP,
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS NutrientAmount (
 CREATE TABLE IF NOT EXISTS MealLogFoods (
     logId UUID,
     foodId INTEGER,
+    quantity DECIMAL(12,5), -- quantity in grams
 
     PRIMARY KEY (logId, foodId),
     FOREIGN KEY (foodId) REFERENCES FoodName(foodId),

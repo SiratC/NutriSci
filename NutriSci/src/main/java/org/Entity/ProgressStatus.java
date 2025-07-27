@@ -24,7 +24,8 @@ public class ProgressStatus {
 
     public double progressOf(NutrientType type) {
         double goal = goals.getOrDefault(type, 0.0);
-        if (goal <= 0) return 0.0;
+        if (goal <= 0)
+            return 0.0;
 
         double value = intake.getOrDefault(type, 0.0);
         return Math.min(100.0, (value / goal) * 100.0);
@@ -44,8 +45,10 @@ public class ProgressStatus {
         }
         return progressMap;
     }
+
     public double getOverallCompletion() {
-        if (goals.isEmpty()) return 0.0;
+        if (goals.isEmpty())
+            return 0.0;
 
         double total = 0;
         int count = 0;
