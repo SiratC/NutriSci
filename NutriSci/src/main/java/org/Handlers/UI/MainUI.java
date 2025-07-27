@@ -68,6 +68,7 @@ public class MainUI {
         tabs.addTab("Meals", buildMealTab());
         tabs.addTab("Swaps", buildSwapTab());
         tabs.addTab("Analysis", buildAnalysisTab());
+        tabs.addTab("Swap Compare", buildSwapCompareTab());
 
         for (int i = 2; i < tabs.getTabCount(); i++) {
 
@@ -560,6 +561,81 @@ public class MainUI {
         intakeLog.updateMeals(currentUser.getUserID(), swapped);
 
         JOptionPane.showMessageDialog(parent, "Swaps applied to " + swapped.size() + " meals.");
+    }
+
+    private static JPanel buildSwapCompareTab() {
+
+        JPanel panel = new JPanel(new BorderLayout());
+
+        JButton loadComparisonButton = new JButton("Compare Swaps (Past 1 day)");
+        JTextArea resultArea = new JTextArea();
+        resultArea.setEditable(false);
+        resultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+
+        loadComparisonButton.addActionListener(e -> {
+            if (currentUser == null) {
+
+                showError(panel, "Please log in first.");
+                return;
+            }
+
+            DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+            List<Meal> originalMeals = intakeLog.getMealsBetween(currentUser.getUserID(), range);
+
+            if (originalMeals == null || originalMeals.isEmpty()) {
+
+                showError(panel, "No meals found to compare.");
+                return;
+            }
+
+            SwapRequest request = new SwapRequest(currentUser, range, NutrientType.Fiber, CFGVersion.V2019);
+            List<Meal> swappedMeals = swapEngine.applySwap(originalMeals, request);
+
+            NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < originalMeals.size(); i++) {
+
+                Meal orig = originalMeals.get(i);
+                Meal swap = swappedMeals.get(i);
+
+                sb.append("\nDate: ").append(orig.getDate()).append("\n");
+
+                sb.append("Original Meal:\n");
+                for (Food f : orig.getItems()) {
+
+                    sb.append(" - ").append(f).append("\n");
+                }
+                Map<NutrientType, Double> origNutrients = calc.calculate(orig);
+
+                sb.append("\nSwapped Meal:\n");
+
+                for (Food f : swap.getItems()) {
+
+                    sb.append(" - ").append(f).append("\n");
+                }
+
+                Map<NutrientType, Double> swapNutrients = calc.calculate(swap);
+
+                sb.append("\nNutrient Comparison:\n");
+
+                for (NutrientType t : NutrientType.values()) {
+
+                    double before = origNutrients.getOrDefault(t, 0.0);
+                    double after = swapNutrients.getOrDefault(t, 0.0);
+                    double diff = after - before;
+                    String change = diff > 0 ? "↑" : (diff < 0 ? "↓" : "→");
+                    sb.append(String.format(" %s: %.1f → %.1f (%+.1f) %s\n", t, before, after, diff, change));
+                }
+                sb.append("\n-----------------------------------\n");
+            }
+
+            resultArea.setText(sb.toString());
+        });
+
+        panel.add(loadComparisonButton, BorderLayout.NORTH);
+        panel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
+        return panel;
     }
 
     private static JPanel buildAnalysisTab() {

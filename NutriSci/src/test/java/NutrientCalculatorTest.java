@@ -7,11 +7,12 @@ import org.Enums.NutrientType;
 import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.Map;
+import java.util.UUID;
 
 class NutrientCalculatorTest {
     @Test
     void dummyLoopUp() {
-        Meal meal = new Meal(LocalDate.now());
+        Meal meal = new Meal(UUID.randomUUID(), LocalDate.now());
         meal.addItem(new Food(1001, "Oatmeal", 1, 100));
 
         NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
