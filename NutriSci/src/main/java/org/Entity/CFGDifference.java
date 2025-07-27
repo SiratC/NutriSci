@@ -1,18 +1,42 @@
 package org.Entity;
 
-/**
- * Compares FoodGroupStats before and after swap operations.
- */
 public class CFGDifference {
-    private FoodGroupStats beforeStats;
-    private FoodGroupStats afterStats;
+
+    private final FoodGroupStats beforeStats;
+
+    private final FoodGroupStats afterStats;
+
+    public CFGDifference(FoodGroupStats before, FoodGroupStats after) {
+
+        this.beforeStats = before;
+        this.afterStats = after;
+    }
+
+    public FoodGroupStats getBeforeStats() {
+
+        return beforeStats;
+    }
+
+    public FoodGroupStats getAfterStats() {
+
+        return afterStats;
+    }
 
     /**
-     * Initializes the class with provided food stats.
-     *
-     * @param before the food group statistics before the swap.
-     * @param after the food group statistics after the swap.
+     * returns the delta (%) between before and after for a specific food group.
      */
-    public CFGDifference(FoodGroupStats before, FoodGroupStats after) {
+    public double getChangeForGroup(org.Enums.FoodGroup group) {
+
+        double before = beforeStats.getPercentage(group);
+        double after = afterStats.getPercentage(group);
+
+        return after - before;
+    }
+
+    // for debug purpose
+    @Override
+    public String toString() {
+
+        return "CFGDifference[" + "beforeStats=" + beforeStats + ", afterStats=" + afterStats + ']';
     }
 }

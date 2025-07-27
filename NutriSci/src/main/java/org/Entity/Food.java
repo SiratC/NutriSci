@@ -1,56 +1,80 @@
 package org.Entity;
 
-/**
- * Represents a food entity based on the name and quantity (in grams/servings).
- */
-public class Food {
-    private String name;
-    private double quantity;
+import org.Enums.NutrientType;
 
-    /**
-     * Defines a food item with a given name and quantity of food.
-     *
-     * @param name the name of the food item.
-     * @param quantity the amount of the food item.
-     */
-    public Food(String name, double quantity) {
+import java.util.HashMap;
+import java.util.Map;
+
+public class Food {
+
+    private int foodID;
+    private String name;
+    private double quantity; // grams or mL
+    private double calories;
+
+    public Food(int foodID, String name, double quantity, double calories) {
+
+        this.foodID = foodID;
         this.name = name;
         this.quantity = quantity;
+        this.calories = calories;
     }
 
-    /**
-     * Returns the food's name.
-     *
-     * @return name of food
-     */
+    public int getFoodID(){
+
+        return foodID;
+    }
     public String getName() {
+
         return name;
     }
 
-    /**
-     * Returns the amount of food.
-     *
-     * @return number of food items
-     */
     public double getQuantity() {
+
         return quantity;
     }
 
-    /**
-     * Sets the name of the food.
-     *
-     * @param name the new name for the food item
-     */
+    public double getCalories() {
+
+        return calories;
+    }
+
     public void setName(String name) {
+
         this.name = name;
     }
 
-    /**
-     * Sets the amount of food in grams or servings.
-     *
-     * @param quantity the new amount of food
-     */
+    public void setFoodID(int foodID) {
+
+        this.foodID = foodID;
+
+    }
+
     public void setQuantity(double quantity) {
+
         this.quantity = quantity;
+    }
+
+    public void setCalories(double calories) {
+
+        this.calories = calories;
+    }
+
+    @Override
+    public String toString() {
+        return name + " (" + quantity + "g): " + calories + " cal";
+    }
+
+    // added getNutrients
+    public Map<NutrientType, Double> getNutrients() {
+        Map<NutrientType, Double> nutrients = new HashMap<>();
+
+        // dummy sample nutrient data per food item for now
+        nutrients.put(NutrientType.Protein, calories * 0.25);
+        nutrients.put(NutrientType.Carbohydrate, calories * 0.50);
+        nutrients.put(NutrientType.Fat, calories * 0.20);
+        nutrients.put(NutrientType.Fiber, calories * 0.05);
+
+        return nutrients;
     }
 }

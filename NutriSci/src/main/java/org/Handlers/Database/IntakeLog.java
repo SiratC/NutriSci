@@ -1,68 +1,76 @@
 package org.Handlers.Database;
 
 import org.Entity.Meal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-
-
-import org.Entity.Meal;
 import org.Entity.DateRange;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-/** In-memory storage for meals */
 public class IntakeLog {
-    private static List<Meal> meals = new ArrayList<>();
 
-    /**
-     * Save a meal to the in-memory list
-     *
-     * @param meal the meal saved in storage
-     */
-    public void saveMeal(Meal meal) {
-        meals.add(meal);
-    }
-    /**
-     * Returns meals based on a given date.
-     * Original method (optional)
-     * @param date the date of the meal
-     * @return meals on date
-     */
-    public static List<Meal> fetchMealsByDate(LocalDate date) {
-        List<Meal> result = new ArrayList<>();
-        for (Meal m : meals) {
-            if (m.getDate().equals(date)) {
-                result.add(m);
-            }
+    private final DatabaseMealLogDAO mealLogDAO = new DatabaseMealLogDAO();
+
+    // save a meal for a specific user
+    public void saveMeal(UUID userId, Meal meal) {
+        try {
+            mealLogDAO.insertMeal(userId, meal.getItems());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return result;
     }
 
-    /**
-     * ✅ NEW: Used by Swing UI to fetch meals between two dates
-     *
-     * @param range the time range to find meals
-     * @return the list of meals
-     */
-    public List<Meal> getMealsBetween(DateRange range) {
-        List<Meal> result = new ArrayList<>();
-        for (Meal m : meals) {
-            if (!m.getDate().isBefore(range.getStart()) && !m.getDate().isAfter(range.getEnd())) {
-                result.add(m);
-            }
+    // fetch meals by date for a specific user
+    public List<Meal> fetchMealsByDate(UUID userId, LocalDate date) {
+        try {
+            return mealLogDAO.getMealsByDate(userId, date.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Collections.emptyList();
         }
-        return result;
     }
 
-    /**
-     * ✅ NEW: Used by Swing UI after swaps
-     *
-     * @param updatedMeals the updated meals given
-     */
-    public void updateMeals(List<Meal> updatedMeals) {
-        meals = new ArrayList<>(updatedMeals);
+    // get meals in a date range for a specific user
+    public List<Meal> getMealsBetween(UUID userId, DateRange range) {
+        try {
+            return mealLogDAO.getMealsByDateRange(userId, range.getStart().toString(), range.getEnd().toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
+
+    // replace all meals for a specific user
+    public void updateMeals(UUID profileId, List<Meal> updatedMeals) {
+        updatedMeals.forEach(meal -> {
+            try {
+                mealLogDAO.updateMeal(meal.getId(), meal.getItems());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    // get all meals for a specific user
+    public List<Meal> getAll(UUID userId) {
+        try {
+            return mealLogDAO.getAllMealsByProfileId(userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+
+    // alias for save
+    public void add(UUID userId, Meal meal) {
+        saveMeal(userId, meal);
+    }
+
+    public void remove(UUID userId, Meal meal) {
+        try {
+            mealLogDAO.removeMeal(meal.getId());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }

@@ -1,34 +1,45 @@
 package org.Handlers.Logic;
-
-
+import org.Entity.Food;
 import org.Entity.Meal;
 import org.Entity.NutrientStats;
-
+import org.Enums.NutrientType;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-/**
- * Implements {@link Analyzer} and handles the nutrient distribution of the meal.
- */
 public class NutrientAnalyzer implements Analyzer<List<Meal>, NutrientStats> {
-    /**
-     * Analyzes the nutrients of the meal and returns the nutrient statistics.
-     *
-     * @param meals the list of food items
-     * @return the nutrient statistics
-     */
+
+    private final DatabaseNutrientLookup lookup = new DatabaseNutrientLookup();
+
     @Override
     public NutrientStats analyze(List<Meal> meals) {
 
+        Map<NutrientType, Double> nutrientSums = new HashMap<>();
         int totalItems = 0;
-        for (Meal m : meals) {
-            totalItems += m.getItems().size();
+
+        for (Meal meal : meals) {
+
+            for (Food food : meal.getItems()) {
+
+                totalItems++;
+                Map<NutrientType, Double> foodNutrients = lookup.getPerUnit(food.getFoodID());
+
+                if (foodNutrients != null) {
+
+                    for (Map.Entry<NutrientType, Double> entry : foodNutrients.entrySet()) {
+
+                        nutrientSums.merge(entry.getKey(), entry.getValue() * food.getQuantity(), Double::sum);
+                    }
+                }
+            }
         }
-        NutrientStats stats = new NutrientStats();
+
+        NutrientStats.NutrientStatsTemplate template = new NutrientStats.Top3Template();
+
+        NutrientStats stats = template.calculateStats(nutrientSums);
+
         stats.setTotalItems(totalItems);
 
         return stats;
     }
 }
-
-
-

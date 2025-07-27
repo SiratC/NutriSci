@@ -1,7 +1,7 @@
 import static org.junit.jupiter.api.Assertions.*;
 import org.Entity.Food;
 import org.Entity.Meal;
-import org.Handlers.Logic.InMemNutrientLookUp;
+import org.Handlers.Logic.DatabaseNutrientLookup;
 import org.Handlers.Logic.NutrientCalculator;
 import org.Enums.NutrientType;
 import org.junit.jupiter.api.Test;
@@ -12,9 +12,9 @@ class NutrientCalculatorTest {
     @Test
     void dummyLoopUp() {
         Meal meal = new Meal(LocalDate.now());
-        meal.addItem(new Food("Test", 3));
+        meal.addItem(new Food(1001, "Oatmeal", 1, 100));
 
-        NutrientCalculator calc = new NutrientCalculator(new InMemNutrientLookUp());
+        NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
 
         Map<NutrientType, Double> result = calc.calculate(meal);
 
