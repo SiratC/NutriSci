@@ -11,6 +11,7 @@ import java.util.List;
 import org.Dao.FoodNameDAO;
 import org.Entity.*;
 import org.Enums.*;
+import org.Handlers.Controller.MealManager;
 import org.Handlers.Controller.ProfileManager;
 import org.Handlers.Database.DataLoader;
 import org.Handlers.Database.DatabaseFoodNameDAO;
@@ -26,6 +27,7 @@ import org.Enums.ChartType;
 public class MainUI {
 
     private static final ProfileManager profileManager = ProfileManager.getInstance();
+    private static final MealManager mealManager = MealManager.getInstance();
     private static final IntakeLog intakeLog = new IntakeLog();
     private static final ExerciseLog exerciseLog = new ExerciseLog();
     private static final SwapEngine swapEngine = new SwapEngine();
@@ -199,13 +201,150 @@ public class MainUI {
 
     private static JPanel buildProfileTab() {
         JPanel panel = new JPanel(new FlowLayout());
+
         JButton infoBtn = new JButton("View Profile Info");
+        JButton setGoalBtn = new JButton("Set Nutrient Goals");
+
+        JButton progressBtn = new JButton("View Progress");
+        progressBtn.addActionListener(e -> showProgressDialog());
+        panel.add(progressBtn);
+
         infoBtn.addActionListener(e -> JOptionPane.showMessageDialog(panel, currentUser.toString()));
+
+        setGoalBtn.addActionListener(e -> openGoalDialog(panel));
+
         panel.add(infoBtn);
+        panel.add(setGoalBtn);
+
         return panel;
     }
 
     private static List<JComboBox<FoodName>> allFoodDropdowns = new ArrayList<>();
+
+
+    private static void openGoalDialog(Component parent) {
+        JDialog dialog = new JDialog(mainFrame, "Set Nutrient Goals", true);
+        dialog.setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JComboBox<NutrientType> nutrientBox1 = new JComboBox<>(NutrientType.values());
+        JTextField valueField1 = new JTextField();
+
+        JComboBox<NutrientType> nutrientBox2 = new JComboBox<>(NutrientType.values());
+        JTextField valueField2 = new JTextField();
+
+        JButton saveBtn = new JButton("Save Goals");
+
+        //Nutrient #1
+        gbc.gridx = 0; gbc.gridy = 0;
+        dialog.add(new JLabel("Nutrient #1:"), gbc);
+        gbc.gridx = 1; gbc.gridy = 0;
+        dialog.add(nutrientBox1, gbc);
+
+        // Goal #1
+        gbc.gridx = 0; gbc.gridy = 1;
+        dialog.add(new JLabel("Goal Amount (g or mg):"), gbc);
+        gbc.gridx = 1; gbc.gridy = 1;
+        dialog.add(valueField1, gbc);
+
+        // Nutrient #2
+        gbc.gridx = 0; gbc.gridy = 2;
+        dialog.add(new JLabel("Nutrient #2 (optional):"), gbc);
+        gbc.gridx = 1; gbc.gridy = 2;
+        dialog.add(nutrientBox2, gbc);
+
+        // Goal #2
+        gbc.gridx = 0; gbc.gridy = 3;
+        dialog.add(new JLabel("Goal Amount (optional):"), gbc);
+        gbc.gridx = 1; gbc.gridy = 3;
+        dialog.add(valueField2, gbc);
+
+        // Save button
+        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        dialog.add(saveBtn, gbc);
+
+        saveBtn.addActionListener(e -> {
+            Map<NutrientType, Double> goals = new HashMap<>();
+
+            try {
+                NutrientType n1 = (NutrientType) nutrientBox1.getSelectedItem();
+                double v1 = Double.parseDouble(valueField1.getText());
+                goals.put(n1, v1);
+            } catch (Exception ex) {
+                showError(parent, "Invalid input for nutrient #1.");
+                return;
+            }
+
+            try {
+                String val2 = valueField2.getText().trim();
+                if (!val2.isEmpty()) {
+                    NutrientType n2 = (NutrientType) nutrientBox2.getSelectedItem();
+                    double v2 = Double.parseDouble(val2);
+                    goals.put(n2, v2);
+                }
+            } catch (Exception ex) {
+                showError(parent, "Invalid input for nutrient #2.");
+                return;
+            }
+
+            currentUser.setNutrientGoals(goals); // assuming this method exists
+            JOptionPane.showMessageDialog(dialog, "Goals saved!");
+            dialog.dispose();
+        });
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(parent);
+        dialog.setVisible(true);
+    }
+
+
+    private static void showProgressDialog() {
+        List<Meal> meals = mealManager.getMeals(currentUser.getUserID());
+        if (meals == null || meals.isEmpty()) {
+            JOptionPane.showMessageDialog(mainFrame, "No meals found. Log some meals first.");
+            return;
+        }
+
+        NutrientAnalyzer analyzer = new NutrientAnalyzer();
+        NutrientStats stats = analyzer.analyze(meals);
+        Map<NutrientType, Double> intake = stats.getAllStats();
+        Map<NutrientType, Double> goals = currentUser.getNutrientGoals();
+        ProgressStatus progress = new ProgressStatus(intake, goals);
+
+        JPanel progressPanel = new JPanel(new GridLayout(0, 1, 10, 10));
+        for (Map.Entry<NutrientType, Double> entry : goals.entrySet()) {
+            NutrientType type = entry.getKey();
+            double percentage = progress.progressOf(type);
+
+            JPanel container = new JPanel(new BorderLayout());
+            JLabel label = new JLabel(type + ": " + String.format("%.1f", percentage) + "%");
+            label.setHorizontalAlignment(SwingConstants.CENTER);
+            label.setFont(label.getFont().deriveFont(Font.BOLD));
+
+            JProgressBar bar = new JProgressBar(0, 100);
+            bar.setValue((int) percentage);
+            bar.setForeground(getProgressColor(percentage));
+            bar.setStringPainted(false);
+
+            container.add(label, BorderLayout.NORTH);
+            container.add(bar, BorderLayout.CENTER);
+            progressPanel.add(container);
+        }
+
+        JScrollPane scroll = new JScrollPane(progressPanel);
+        scroll.setPreferredSize(new Dimension(400, 300));
+        JOptionPane.showMessageDialog(mainFrame, scroll, "Nutrient Goal Progress", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private static Color getProgressColor(double percentage) {
+        if (percentage < 50) return Color.RED;
+        else if (percentage < 90) return Color.ORANGE;
+        else return new Color(0, 153, 0); // Green
+    }
+
 
     private static JPanel buildMealTab() {
 
@@ -344,47 +483,47 @@ public class MainUI {
         return panel;
     }
 
-    private static void handleMealLogging(Component parent) {
-
-        if (currentUser == null) {
-
-            showError(parent, "Please log in first.");
-
-            return;
-        }
-
-        Meal meal = new Meal.Builder().withDate(LocalDate.now()).build();
-        meal.addItem(new Food(114, "Milk, fluid, skim", 1, 34));
-        intakeLog.saveMeal(currentUser.getUserID(), meal);
-
-        Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));
-        exerciseLog.saveSession(run);
-
-        NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
-        Map<NutrientType, Double> nutMap = calc.calculate(meal);
-
-        Map<String, Double> stringMap = new HashMap<>();
-
-        for (Map.Entry<NutrientType, Double> entry : nutMap.entrySet()) {
-
-            if (entry.getValue() > 0) {
-
-                stringMap.put(entry.getKey().name(), entry.getValue());
-            }
-        }
-
-        ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal Nutrient Breakdown");
-
-        JFrame chartFrame = new JFrame("Nutrient Pie Chart");
-
-        chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        chartFrame.add(chartPanel);
-        chartFrame.pack();
-        chartFrame.setLocationRelativeTo(parent);
-        chartFrame.setVisible(true);
-
-        JOptionPane.showMessageDialog(parent, "The meal and exercise are logged.");
-    }
+//    private static void handleMealLogging(Component parent) {
+//
+//        if (currentUser == null) {
+//
+//            showError(parent, "Please log in first.");
+//
+//            return;
+//        }
+//
+//        Meal meal = new Meal.Builder().withDate(LocalDate.now()).build();
+//        meal.addItem(new Food(114, "Milk, fluid, skim", 1, 34));
+//        intakeLog.saveMeal(currentUser.getUserID(), meal);
+//
+//        Exercise run = new Exercise(LocalDate.now(), "Running", Duration.ofMinutes(30));
+//        exerciseLog.saveSession(run);
+//
+//        NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
+//        Map<NutrientType, Double> nutMap = calc.calculate(meal);
+//
+//        Map<String, Double> stringMap = new HashMap<>();
+//
+//        for (Map.Entry<NutrientType, Double> entry : nutMap.entrySet()) {
+//
+//            if (entry.getValue() > 0) {
+//
+//                stringMap.put(entry.getKey().name(), entry.getValue());
+//            }
+//        }
+//
+//        ChartPanel chartPanel = Visualizer.createPieChartPanel(stringMap, "Meal Nutrient Breakdown");
+//
+//        JFrame chartFrame = new JFrame("Nutrient Pie Chart");
+//
+//        chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+//        chartFrame.add(chartPanel);
+//        chartFrame.pack();
+//        chartFrame.setLocationRelativeTo(parent);
+//        chartFrame.setVisible(true);
+//
+//        JOptionPane.showMessageDialog(parent, "The meal and exercise are logged.");
+//    }
 
     private static JPanel buildSwapTab() {
 

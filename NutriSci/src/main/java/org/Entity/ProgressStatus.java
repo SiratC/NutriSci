@@ -44,4 +44,19 @@ public class ProgressStatus {
         }
         return progressMap;
     }
+    public double getOverallCompletion() {
+        if (goals.isEmpty()) return 0.0;
+
+        double total = 0;
+        int count = 0;
+
+        for (NutrientType type : goals.keySet()) {
+            if (goals.get(type) > 0) {
+                total += progressOf(type);
+                count++;
+            }
+        }
+
+        return count > 0 ? total / count : 0.0;
+    }
 }

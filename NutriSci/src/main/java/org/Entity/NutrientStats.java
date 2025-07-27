@@ -53,6 +53,11 @@ public class NutrientStats {
                 ']';
     }
 
+    public Map<NutrientType, Double> getAllStats() {
+        return nutrientPercentages != null ? nutrientPercentages : new EnumMap<>(NutrientType.class);
+    }
+
+
     // template design implemented
     public static abstract class NutrientStatsTemplate {
         public NutrientStats calculateStats(Map<NutrientType, Double> totalMap) {

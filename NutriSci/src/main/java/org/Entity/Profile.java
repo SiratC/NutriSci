@@ -139,6 +139,11 @@ public class Profile {
         return nutrientGoals;
     }
 
+    public void setNutrientGoals(Map<NutrientType, Double> goals) {
+        this.nutrientGoals = goals;
+    }
+
+
     @Override
     public String toString() {
         return name + " (" + sex + "), Age: " + getAge() + ", BMI: " + String.format("%.1f", getBMI());
