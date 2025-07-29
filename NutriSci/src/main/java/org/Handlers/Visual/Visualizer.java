@@ -25,11 +25,17 @@ public class Visualizer {
      * @param title chart title
      */
     public static ChartPanel createPieChartPanel(Map<String, Double> data, String title) {
-
         DefaultPieDataset dataset = new DefaultPieDataset();
-        data.forEach(dataset::setValue);
-        JFreeChart chart = ChartFactory.createPieChart(title, dataset, true, true, false);
 
+        for (Map.Entry<String, Double> entry : data.entrySet()) {
+            double val = entry.getValue();
+            System.out.println("Group: " + entry.getKey() + ", Value: " + val);  // <--- Add this
+            if (val > 0.01) {
+                dataset.setValue(entry.getKey(), val);
+            }
+        }
+
+        JFreeChart chart = ChartFactory.createPieChart(title, dataset, true, true, false);
         return new ChartPanel(chart);
     }
 

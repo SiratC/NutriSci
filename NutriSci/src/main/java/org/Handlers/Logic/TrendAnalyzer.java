@@ -1,6 +1,8 @@
 package org.Handlers.Logic;
+
 import org.Entity.*;
 import org.Enums.NutrientType;
+
 import java.time.LocalDate;
 import java.util.*;
 
@@ -29,10 +31,9 @@ public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
 
             for (Meal meal : dayMeals) {
 
-                Map<NutrientType, Double> mealMap = calculator.calculate(meal);
+                Map<NutrientType, Double> mealMap = calculator.calculateWithFallback(meal);
 
                 for (Map.Entry<NutrientType, Double> m : mealMap.entrySet()) {
-
                     dailyMap.merge(m.getKey(), m.getValue(), Double::sum);
                     totalMap.merge(m.getKey(), m.getValue(), Double::sum);
                 }
@@ -54,10 +55,7 @@ public class TrendAnalyzer implements Analyzer<List<Meal>, TrendResult> {
         return result;
     }
 
-
     public void update(String action, UUID userId, List<Meal> meals) {
-
-        // stub for observer compatibility
         System.out.println("[TrendAnalyzer] update triggered: " + action + " for user " + userId);
     }
 }

@@ -4,12 +4,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-class DatabaseConnection {
+public class DatabaseConnection {
     private static final String URL = "jdbc:postgresql://localhost:5432/nutrisci";
     private static final String USERNAME = "user";
     private static final String PASSWORD = "password";
 
-    static Connection getConnection() throws SQLException {
+    public static Connection getConnection() throws SQLException {
         try {
             return DriverManager.getConnection(URL, USERNAME, PASSWORD);
         } catch (SQLException e) {

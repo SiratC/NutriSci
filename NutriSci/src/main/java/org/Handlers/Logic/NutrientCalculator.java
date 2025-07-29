@@ -16,22 +16,41 @@ public class NutrientCalculator {
     }
 
     public Map<NutrientType, Double> calculate(Meal meal) {
-
         Map<NutrientType, Double> totals = new EnumMap<>(NutrientType.class);
-
         for (NutrientType t : NutrientType.values()) {
-
             totals.put(t, 0.0);
         }
 
         for (Food f : meal.getItems()) {
-
             Map<NutrientType, Double> perUnit = lookup.getPerUnit(f.getFoodID());
+            if (perUnit == null || perUnit.isEmpty()) {
+                perUnit = f.getNutrients();
+            }
 
             for (NutrientType t : NutrientType.values()) {
+                double val = perUnit.getOrDefault(t, 0.0);
+                double updated = totals.get(t) + (val / 100.0) * f.getQuantity();
+                totals.put(t, updated);
+            }
+        }
 
-                double updated = totals.get(t) + perUnit.getOrDefault(t, 0.0) * f.getQuantity();
+        return totals;
+    }
+    public Map<NutrientType, Double> calculateWithFallback(Meal meal) {
+        Map<NutrientType, Double> totals = new EnumMap<>(NutrientType.class);
+        for (NutrientType t : NutrientType.values()) {
+            totals.put(t, 0.0);
+        }
 
+        for (Food f : meal.getItems()) {
+            Map<NutrientType, Double> perUnit = lookup.getPerUnit(f.getFoodID());
+            if (perUnit == null || perUnit.isEmpty()) {
+                perUnit = f.getNutrients(); // fallback
+            }
+
+            for (NutrientType t : NutrientType.values()) {
+                double val = perUnit.getOrDefault(t, 0.0);
+                double updated = totals.get(t) + (val / 100.0) * f.getQuantity();
                 totals.put(t, updated);
             }
         }

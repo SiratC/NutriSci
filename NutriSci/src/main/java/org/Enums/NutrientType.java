@@ -5,6 +5,6 @@ public enum NutrientType {
     Carbohydrate,
     Fat,
     Fiber,
+    Calories,
     Other
 }
-

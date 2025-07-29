@@ -31,7 +31,7 @@ public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
             Map<NutrientType, Double> dailyTotal = new EnumMap<>(NutrientType.class);
 
             for (Meal meal : dayMeals) {
-                Map<NutrientType, Double> mealValues = calculator.calculate(meal);
+                Map<NutrientType, Double> mealValues = calculator.calculateWithFallback(meal);
                 for (Map.Entry<NutrientType, Double> nutEntry : mealValues.entrySet()) {
                     dailyTotal.merge(nutEntry.getKey(), nutEntry.getValue(), Double::sum);
                 }
@@ -50,10 +50,9 @@ public class SwapTracker implements Analyzer<List<Meal>, NutrientChangeStats> {
     }
 
     public void update(String action, UUID userId, List<Meal> meals) {
-        
-        // implement specific logic here later
         System.out.println("[SwapTracker] update triggered: " + action + " for user " + userId);
     }
 }
+
 
 
