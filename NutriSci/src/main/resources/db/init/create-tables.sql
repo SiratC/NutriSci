@@ -64,3 +64,14 @@ CREATE TABLE IF NOT EXISTS MealLogFoods (
     FOREIGN KEY (foodId) REFERENCES FoodName(foodId),
     FOREIGN KEY (logId) REFERENCES MealLogs(id)
 );
+
+CREATE TABLE IF NOT EXISTS MealLogFoodsBeforeSwap (
+    logId UUID,
+    foodId INTEGER,
+    quantity DECIMAL(12,5), -- quantity in grams
+
+    PRIMARY KEY (logId, foodId),
+    FOREIGN KEY (foodId) REFERENCES FoodName(foodId),
+    FOREIGN KEY (logId) REFERENCES MealLogs(id)
+)
+

@@ -12,7 +12,7 @@ public class Food {
     private String name;
     private double quantity; // grams or mL
     private double calories;
-    //private Map<NutrientType, Double> nutrients = new HashMap<>();
+    // private Map<NutrientType, Double> nutrients = new HashMap<>();
     private Map<NutrientType, Double> nutrients = new EnumMap<>(NutrientType.class);
 
     public Food(int foodID, String name, double quantity, double calories) {
@@ -57,6 +57,7 @@ public class Food {
     public void setNutrients(Map<NutrientType, Double> nutrients) {
         this.nutrients = nutrients != null ? new EnumMap<>(nutrients) : new EnumMap<>(NutrientType.class);
     }
+
     public Map<NutrientType, Double> getRawNutrients() {
         return nutrients;
     }
@@ -65,6 +66,7 @@ public class Food {
         return nutrients != null ? nutrients : new EnumMap<>(NutrientType.class);
 
     }
+
     public Map<NutrientType, Double> getEstimatedNutrients() {
         Map<NutrientType, Double> dummy = new EnumMap<>(NutrientType.class);
         double cal = calories > 0 ? calories : 100.0;
@@ -76,11 +78,8 @@ public class Food {
         return dummy;
     }
 
-
-
     @Override
     public String toString() {
-        return name + " (" + quantity + "g): " + calories + " cal";
+        return name + " (" + quantity + "g): " + String.format("%.2f", calories) + " cal";
     }
 }
-

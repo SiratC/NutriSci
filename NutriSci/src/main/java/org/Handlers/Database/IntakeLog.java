@@ -48,6 +48,16 @@ public class IntakeLog {
         }
     }
 
+    public List<Meal> getOriginalMealsBetween(UUID userId, DateRange range) {
+        try {
+            return mealLogDAO.getOriginalMealsByDateRange(userId, range.getStart().toString(),
+                    range.getEnd().toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+
     public List<Meal> getMealsBetween(UUID userId, DateRange range) {
         try {
             return mealLogDAO.getMealsByDateRange(userId, range.getStart().toString(), range.getEnd().toString());
@@ -57,7 +67,7 @@ public class IntakeLog {
         }
     }
 
-    // Replace meals in DB: delete meals on same date, then insert swapped meals
+    // replace meals in DB, store original food items
     public void updateMeals(UUID userId, List<Meal> updatedMeals) {
         try {
             Set<LocalDate> affectedDates = new HashSet<>();
@@ -65,15 +75,8 @@ public class IntakeLog {
                 affectedDates.add(m.getDate());
             }
 
-            for (LocalDate date : affectedDates) {
-                List<Meal> oldMeals = mealLogDAO.getMealsByDate(userId, date.toString());
-                for (Meal m : oldMeals) {
-                    mealLogDAO.removeMeal(m.getId());
-                }
-            }
-
             for (Meal meal : updatedMeals) {
-                mealLogDAO.insertMeal(userId, meal.getType(), meal.getItems(), meal.getDate());
+                mealLogDAO.updateMeal(meal.getId(), meal.getItems());
             }
 
             System.out.println("[IntakeLog] Replaced meals on: " + affectedDates);

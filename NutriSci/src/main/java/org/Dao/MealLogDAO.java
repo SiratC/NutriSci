@@ -17,6 +17,10 @@ public interface MealLogDAO {
 
     List<Meal> getMealsByDate(UUID profileId, String date) throws SQLException;
 
+    List<Food> getAllOriginalFoodsByMealId(UUID mealId) throws SQLException;
+
+    List<Meal> getOriginalMealsByDateRange(UUID profileId, String startDate, String endDate) throws SQLException;
+
     void updateMeal(UUID mealId, List<Food> foods) throws SQLException;
 
     void removeMeal(UUID mealId) throws SQLException;
