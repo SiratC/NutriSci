@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.Entity.Food;
+import org.Entity.FoodName;
 import org.Entity.Meal;
 import org.Entity.SwapRequest;
 import org.Enums.NutrientType;
@@ -17,6 +18,8 @@ import org.Handlers.Database.*;
 import java.sql.Connection;
 
 public class SwapEngine {
+
+    private final DatabaseFoodNameDAO foodNameDAO = new DatabaseFoodNameDAO();
 
     public List<Meal> applySwap(List<Meal> meals, SwapRequest request) {
         NutrientType target = request.getTargetNutrient();
@@ -65,7 +68,7 @@ public class SwapEngine {
 
     private List<SwapCandidate> findSwapCandidates(List<Meal> meals, NutrientType target, double deficit) {
         List<SwapCandidate> candidates = new ArrayList<>();
-        List<Integer> usedReplacementFoodIds = new ArrayList<>(); // Track used replacement foods
+        List<Integer> usedReplacementFoodIds = new ArrayList<>(); // track used replacement foods
 
         for (int mealIndex = 0; mealIndex < meals.size(); mealIndex++) {
             Meal meal = meals.get(mealIndex);
@@ -201,7 +204,7 @@ public class SwapEngine {
 
         // load full nutrient profile for the selected food
         Map<NutrientType, Double> nutrients = loadNutrientProfile(best.foodId, original.getQuantity());
-        double calories = calculateCalories(nutrients, original.getQuantity());
+        double calories = calculateCalories(best.foodId, original.getQuantity());
 
         System.out.println("  Selected: " + best.description + " (improvement: +" +
                 String.format("%.1f", best.improvement) + "g " + targetNutrient + ")");
@@ -307,7 +310,7 @@ public class SwapEngine {
 
             for (Food food : foodMap.values()) {
                 Map<NutrientType, Double> nutrients = nutrientMaps.get(food.getFoodID());
-                double calories = calculateCalories(nutrients, food.getQuantity());
+                double calories = calculateCalories(food.getFoodID(), food.getQuantity());
 
                 food.setNutrients(nutrients);
                 food.setCalories(calories);
@@ -332,7 +335,7 @@ public class SwapEngine {
             if (food.getNutrients().isEmpty()) {
                 try {
                     Map<NutrientType, Double> nutrients = loadNutrientProfile(food.getFoodID(), food.getQuantity());
-                    double calories = calculateCalories(nutrients, food.getQuantity());
+                    double calories = calculateCalories(food.getFoodID(), food.getQuantity());
 
                     Food enrichedFood = new Food(food.getFoodID(), food.getName(), food.getQuantity(), calories);
                     enrichedFood.setNutrients(nutrients);
@@ -369,11 +372,14 @@ public class SwapEngine {
         return replacementValue - originalValue;
     }
 
-    private double calculateCalories(Map<NutrientType, Double> nutrients, double quantity) {
-        double protein = nutrients.getOrDefault(NutrientType.Protein, 0.0);
-        double carbs = nutrients.getOrDefault(NutrientType.Carbohydrate, 0.0);
-        double fat = nutrients.getOrDefault(NutrientType.Fat, 0.0);
-        return 4 * protein + 4 * carbs + 9 * fat;
+    private double calculateCalories(int foodId, double quantity) throws SQLException {
+        try {
+            FoodName food = foodNameDAO.findById(foodId);
+            return food != null ? (food.getCaloriesPer100g() * (quantity / 100.0)) : 0.0;
+        } catch (SQLException e) {
+            System.err.println("Failed to calculate calories for food ID " + foodId + ": " + e.getMessage());
+            return 0.0;
+        }
     }
 
     private List<Meal> applyBestSwaps(List<Meal> originalMeals, List<SwapCandidate> candidates, int maxSwaps) {
@@ -444,7 +450,6 @@ public class SwapEngine {
             case 205 -> NutrientType.Carbohydrate;
             case 204 -> NutrientType.Fat;
             case 291 -> NutrientType.Fiber;
-            case 208 -> NutrientType.Calories;
             default -> null;
         };
     }
