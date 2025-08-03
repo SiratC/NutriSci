@@ -4,18 +4,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.Dao.FoodNameDAO;
-import org.Dao.NutrientAmountDAO;
-import org.Dao.NutrientNameDAO;
 import org.Entity.Food;
 import org.Entity.Meal;
-import org.Entity.NutrientAmount;
 import org.Entity.SwapRequest;
 import org.Enums.NutrientType;
 import org.Handlers.Database.*;
@@ -23,21 +18,14 @@ import java.sql.Connection;
 
 public class SwapEngine {
 
-    private final NutrientAmountDAO nutrientAmountDAO = new DatabaseNutrientAmountDAO();
-    private final NutrientNameDAO nutrientNameDAO = new DatabaseNutrientNameDao();
-    private final FoodNameDAO foodNameDAO = new DatabaseFoodNameDAO();
-
     public List<Meal> applySwap(List<Meal> meals, SwapRequest request) {
         NutrientType target = request.getTargetNutrient();
 
-        // First, ensure all foods have their nutrient data loaded
         List<Meal> mealsWithNutrients = loadNutrientsForMeals(meals);
 
-        // Calculate current total of target nutrient
         double currentTotal = calculateTotalNutrient(mealsWithNutrients, target);
         System.out.println("Current total " + target + ": " + currentTotal);
 
-        // Calculate target amount needed
         double targetAmount;
         if (request.isPercentage()) {
             targetAmount = currentTotal * (1 + request.getIntensityAmount());
@@ -49,26 +37,19 @@ public class SwapEngine {
         System.out.println(
                 "Request intensity: " + request.getIntensityAmount() + " (percentage: " + request.isPercentage() + ")");
 
-        // Calculate deficit
         double deficit = targetAmount - currentTotal;
         System.out.println("Deficit to fill: " + deficit);
 
-        // If current total is very low, force a minimum deficit for carbohydrates
-        if (target == NutrientType.Carbohydrate && currentTotal < 5.0) {
-            deficit = Math.max(deficit, 20.0); // Force at least 20g carb improvement
-            System.out.println("Forcing minimum carb deficit: " + deficit);
-        }
-
-        // If no meaningful deficit, return original meals
+        // if no meaningful deficit, return original meals
         if (deficit <= 0.1) {
             System.out.println("No meaningful deficit - returning original meals");
             return new ArrayList<>(mealsWithNutrients);
         }
 
-        // Find best swaps to achieve the goal
+        // find best swaps to achieve the goal
         List<SwapCandidate> swapCandidates = findSwapCandidates(mealsWithNutrients, target, deficit);
 
-        // Apply up to 2 best swaps
+        // apply up to 2 best swaps
         return applyBestSwaps(mealsWithNutrients, swapCandidates, Math.min(2, swapCandidates.size()));
     }
 
@@ -101,7 +82,7 @@ public class SwapEngine {
                         candidates.add(new SwapCandidate(
                                 mealIndex, foodIndex, originalFood, replacement, improvement));
 
-                        // Mark this replacement food as used
+                        // mark this replacement food as used
                         usedReplacementFoodIds.add(replacement.getFoodID());
                     }
                 } catch (SQLException e) {
@@ -111,7 +92,7 @@ public class SwapEngine {
             }
         }
 
-        // Sort by improvement (descending) and prefer same-group swaps
+        // sort by improvement (descending) and prefer same-group swaps
         candidates.sort((a, b) -> {
             String originalGroupA = guessGroup(a.originalFood.getName());
             String replacementGroupA = guessGroup(a.replacementFood.getName());
@@ -121,13 +102,13 @@ public class SwapEngine {
             boolean sameGroupA = originalGroupA.equals(replacementGroupA);
             boolean sameGroupB = originalGroupB.equals(replacementGroupB);
 
-            // Prefer same-group swaps
+            // prefer same-group swaps
             if (sameGroupA && !sameGroupB)
                 return -1;
             if (!sameGroupA && sameGroupB)
                 return 1;
 
-            // Then by improvement amount
+            // then by improvement amount
             return Double.compare(b.improvement, a.improvement);
         });
 
@@ -143,21 +124,8 @@ public class SwapEngine {
                 " (current " + targetNutrient + ": " + originalTargetValue + ")");
         System.out.println("  Already used food IDs: " + usedReplacementFoodIds);
 
-        // Get the nutrient ID for the target nutrient
         int targetNutrientId = mapNutrientTypeToId(targetNutrient);
         System.out.println("  Looking for nutrient ID: " + targetNutrientId);
-
-        // debug: First check what nutrient IDs actually exist
-        String debugSql = "SELECT DISTINCT nutrientNameId FROM NutrientAmount ORDER BY nutrientNameId LIMIT 10";
-        try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement debugPs = conn.prepareStatement(debugSql);
-                ResultSet debugRs = debugPs.executeQuery()) {
-            System.out.print("  Available nutrient IDs: ");
-            while (debugRs.next()) {
-                System.out.print(debugRs.getInt(1) + " ");
-            }
-            System.out.println();
-        }
 
         String sql = """
                 SELECT f.foodId, f.foodDescription, na.nutrientValue
@@ -185,13 +153,13 @@ public class SwapEngine {
                     String description = rs.getString("foodDescription");
                     double nutrientValuePer100g = rs.getDouble("nutrientValue");
 
-                    // Skip if this food has already been used as a replacement
+                    // skip if this food has already been used as a replacement
                     if (usedReplacementFoodIds.contains(foodId)) {
                         System.out.println("    Row " + count + ": " + description + " (SKIPPED - already used)");
                         continue;
                     }
 
-                    // Calculate improvement for the same quantity as original food
+                    // calculate improvement for the same quantity as original food
                     double scaledValue = nutrientValuePer100g * (original.getQuantity() / 100.0);
                     double improvement = scaledValue - originalTargetValue;
 
@@ -213,7 +181,6 @@ public class SwapEngine {
             System.out.println(
                     "  No candidates found, checking if nutrient ID " + targetNutrientId + " exists in database...");
 
-            // Debug: check if this nutrient ID exists at all
             String debugSql2 = "SELECT COUNT(*) FROM NutrientAmount WHERE nutrientNameId = ?";
             try (Connection conn = DatabaseConnection.getConnection();
                     PreparedStatement ps = conn.prepareStatement(debugSql2)) {
@@ -229,10 +196,10 @@ public class SwapEngine {
             return Optional.empty();
         }
 
-        // Take the best candidate (highest improvement)
+        // take the best candidate (highest improvement)
         CandidateFood best = candidates.get(0);
 
-        // Load full nutrient profile for the selected food
+        // load full nutrient profile for the selected food
         Map<NutrientType, Double> nutrients = loadNutrientProfile(best.foodId, original.getQuantity());
         double calories = calculateCalories(nutrients, original.getQuantity());
 
@@ -282,10 +249,8 @@ public class SwapEngine {
 
         for (Meal meal : originalMeals) {
             if (meal.getId() == null) {
-                // Meal not saved yet, load nutrients individually
                 result.add(loadNutrientsForUnsavedMeal(meal));
             } else {
-                // Meal is saved, use efficient batch query
                 result.add(loadNutrientsForSavedMeal(meal));
             }
         }
@@ -321,13 +286,11 @@ public class SwapEngine {
                         int nutrientId = rs.getInt("nutrientNameId");
                         double nutrientValuePer100g = rs.getDouble("nutrientValue");
 
-                        // Create food object if not exists
                         if (!foodMap.containsKey(foodId)) {
                             foodMap.put(foodId, new Food(foodId, description, quantity, 0.0));
                             nutrientMaps.put(foodId, new HashMap<>());
                         }
 
-                        // Add nutrient data
                         NutrientType type = mapIdToNutrientType(nutrientId);
                         if (type != null) {
                             double scaledValue = nutrientValuePer100g * (quantity / 100.0);
@@ -337,7 +300,6 @@ public class SwapEngine {
                 }
             }
 
-            // Build meal with enriched foods
             Meal.Builder builder = new Meal.Builder()
                     .withDate(meal.getDate())
                     .withId(meal.getId())
@@ -442,7 +404,6 @@ public class SwapEngine {
                     candidate.originalFood.getName() + " -> " + candidate.replacementFood.getName() +
                     " (improvement: +" + String.format("%.1f", candidate.improvement) + "g)");
 
-            // Get the meal to modify
             Meal mealToModify = result.get(candidate.mealIndex);
             List<Food> foods = new ArrayList<>(mealToModify.getItems());
 
@@ -450,7 +411,6 @@ public class SwapEngine {
             // replacement
             foods.set(candidate.foodIndex, candidate.replacementFood);
 
-            // Create new meal with the replacement
             Meal.Builder builder = new Meal.Builder()
                     .withDate(mealToModify.getDate())
                     .withId(mealToModify.getId())
@@ -460,7 +420,6 @@ public class SwapEngine {
                 builder.add(food);
             }
 
-            // Replace the meal in the result list
             result.set(candidate.mealIndex, builder.build());
             swapsApplied++;
         }
@@ -512,7 +471,7 @@ public class SwapEngine {
         return "other";
     }
 
-    // Helper classes
+    // helper class
     private static class SwapCandidate {
         final int mealIndex;
         final int foodIndex;
