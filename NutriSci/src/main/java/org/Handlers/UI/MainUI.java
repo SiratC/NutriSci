@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -721,40 +722,191 @@ public class MainUI {
         gbc.insets = new Insets(8, 10, 8, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        // First target nutrient components
         JComboBox<NutrientType> nutrientBox = new JComboBox<>(NutrientType.values());
         JTextField intensityField = new JTextField("10");
         JCheckBox percentCheck = new JCheckBox("Use Percentage", true);
-        JComboBox<CFGVersion> cfgBox = new JComboBox<>(CFGVersion.values());
+
+        // Second target nutrient components (optional)
+        JCheckBox enableSecondTargetCheck = new JCheckBox("Enable Second Target", false);
+        JComboBox<NutrientType> secondNutrientBox = new JComboBox<>(NutrientType.values());
+        JTextField secondIntensityField = new JTextField("10");
+        JCheckBox secondPercentCheck = new JCheckBox("Use Percentage", true);
+
+        // Initially disable second target components
+        secondNutrientBox.setEnabled(false);
+        secondIntensityField.setEnabled(false);
+        secondPercentCheck.setEnabled(false);
+
         JButton applySwapBtn = new JButton("Apply Swap");
 
+        int row = 0;
+
+        // First target nutrient
         gbc.gridx = 0;
-        gbc.gridy = 0;
+        gbc.gridy = row;
         panel.add(new JLabel("Target Nutrient:"), gbc);
         gbc.gridx = 1;
         panel.add(nutrientBox, gbc);
+        row++;
 
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy = row;
         panel.add(new JLabel("Intensity:"), gbc);
         gbc.gridx = 1;
         panel.add(intensityField, gbc);
+        row++;
 
         gbc.gridx = 0;
-        gbc.gridy = 2;
-        panel.add(new JLabel("CFG Version:"), gbc);
-        gbc.gridx = 1;
-        panel.add(cfgBox, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = row;
         panel.add(new JLabel("Mode:"), gbc);
         gbc.gridx = 1;
         panel.add(percentCheck, gbc);
+        row++;
+
+        // Enable second target checkbox
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        panel.add(enableSecondTargetCheck, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Second target nutrient (optional)
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("Second Target Nutrient:"), gbc);
+        gbc.gridx = 1;
+        panel.add(secondNutrientBox, gbc);
+        row++;
 
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = row;
+        panel.add(new JLabel("Second Intensity:"), gbc);
+        gbc.gridx = 1;
+        panel.add(secondIntensityField, gbc);
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("Second Mode:"), gbc);
+        gbc.gridx = 1;
+        panel.add(secondPercentCheck, gbc);
+        row++;
+
+        // Date Range Selection
+        JCheckBox customRangeCheck = new JCheckBox("Custom Date Range", false);
+        JSpinner startDateSpinner = new JSpinner(new SpinnerDateModel());
+        startDateSpinner.setEditor(new JSpinner.DateEditor(startDateSpinner, "yyyy-MM-dd"));
+        JSpinner endDateSpinner = new JSpinner(new SpinnerDateModel());
+        endDateSpinner.setEditor(new JSpinner.DateEditor(endDateSpinner, "yyyy-MM-dd"));
+
+        // Initially disable date spinners
+        startDateSpinner.setEnabled(false);
+        endDateSpinner.setEnabled(false);
+
+        // Set default dates (yesterday to today)
+        startDateSpinner
+                .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        panel.add(customRangeCheck, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Quick select buttons
+        JPanel quickSelectPanel = new JPanel(new FlowLayout());
+        JButton last24HoursBtn = new JButton("Last 24h");
+        JButton last3DaysBtn = new JButton("Last 3 days");
+        JButton lastWeekBtn = new JButton("Last week");
+        JButton lastMonthBtn = new JButton("Last month");
+
+        quickSelectPanel.add(last24HoursBtn);
+        quickSelectPanel.add(last3DaysBtn);
+        quickSelectPanel.add(lastWeekBtn);
+        quickSelectPanel.add(lastMonthBtn);
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        panel.add(quickSelectPanel, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Add listeners for quick select buttons
+        last24HoursBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        last3DaysBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(3).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastWeekBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusWeeks(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastMonthBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusMonths(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("Start Date:"), gbc);
+        gbc.gridx = 1;
+        panel.add(startDateSpinner, gbc);
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("End Date:"), gbc);
+        gbc.gridx = 1;
+        panel.add(endDateSpinner, gbc);
+        row++;
+
+        // Add listener to enable/disable date range components
+        customRangeCheck.addActionListener(e -> {
+            boolean enabled = customRangeCheck.isSelected();
+            startDateSpinner.setEnabled(enabled);
+            endDateSpinner.setEnabled(enabled);
+        });
+
+        // Apply button
+        gbc.gridx = 0;
+        gbc.gridy = row;
         gbc.gridwidth = 2;
         panel.add(applySwapBtn, gbc);
+
+        // Add listener to enable/disable second target components
+        enableSecondTargetCheck.addActionListener(e -> {
+            boolean enabled = enableSecondTargetCheck.isSelected();
+            secondNutrientBox.setEnabled(enabled);
+            secondIntensityField.setEnabled(enabled);
+            secondPercentCheck.setEnabled(enabled);
+        });
 
         applySwapBtn.addActionListener(e -> {
             if (currentUser == null) {
@@ -764,23 +916,82 @@ public class MainUI {
 
             try {
                 NutrientType nutrient = (NutrientType) nutrientBox.getSelectedItem();
-                CFGVersion cfg = (CFGVersion) cfgBox.getSelectedItem();
                 double intensity = Double.parseDouble(intensityField.getText());
                 boolean isPercent = percentCheck.isSelected();
 
-                DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                // Create date range based on user selection
+                DateRange range;
+                if (customRangeCheck.isSelected()) {
+                    LocalDate startDate = ((Date) startDateSpinner.getValue()).toInstant()
+                            .atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate endDate = ((Date) endDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                            .toLocalDate();
+
+                    // Validate date range
+                    if (startDate.isAfter(endDate)) {
+                        showError(panel, "Start date cannot be after end date.");
+                        return;
+                    }
+
+                    // Limit to 90 days to prevent performance issues
+                    long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+                    if (daysBetween > 90) {
+                        showError(panel, "Date range cannot exceed 90 days. Selected range: " + daysBetween + " days.");
+                        return;
+                    }
+
+                    range = new DateRange(startDate, endDate);
+                    System.out.println(
+                            "Using custom date range: " + startDate + " to " + endDate + " (" + daysBetween + " days)");
+                } else {
+                    // Default to last 24 hours
+                    range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                    System.out.println("Using default date range: last 24 hours");
+                }
                 List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), range);
                 if (meals == null || meals.isEmpty()) {
                     showError(panel, "No meals found in selected range.");
                     return;
                 }
 
-                SwapRequest request = new SwapRequest(currentUser, range, nutrient, cfg,
-                        intensity / (isPercent ? 100.0 : 1.0), isPercent);
+                SwapRequest request;
+                if (enableSecondTargetCheck.isSelected()) {
+                    // Create dual target request
+                    NutrientType secondNutrient = (NutrientType) secondNutrientBox.getSelectedItem();
+                    double secondIntensity = Double.parseDouble(secondIntensityField.getText());
+                    boolean secondIsPercent = secondPercentCheck.isSelected();
+
+                    // Validate that the two target nutrients are different
+                    if (nutrient.equals(secondNutrient)) {
+                        showError(panel, "Second target nutrient must be different from the first.");
+                        return;
+                    }
+
+                    request = new SwapRequest(currentUser, range, nutrient,
+                            intensity / (isPercent ? 100.0 : 1.0), isPercent,
+                            secondNutrient, secondIntensity / (secondIsPercent ? 100.0 : 1.0), secondIsPercent);
+
+                    System.out.println("Applying dual-target swap: " + nutrient + " + " + secondNutrient);
+                } else {
+                    // Create single target request (backward compatibility)
+                    request = new SwapRequest(currentUser, range, nutrient,
+                            intensity / (isPercent ? 100.0 : 1.0), isPercent);
+
+                    System.out.println("Applying single-target swap: " + nutrient);
+                }
+
                 List<Meal> swapped = swapEngine.applySwap(meals, request);
                 intakeLog.updateMeals(currentUser.getUserID(), swapped);
 
-                JOptionPane.showMessageDialog(panel, "Swaps applied to " + swapped.size() + " meals.");
+                String rangeInfo = customRangeCheck.isSelected()
+                        ? " from " + range.getStart() + " to " + range.getEnd() + " (" + range.getLengthInDays()
+                                + " days)"
+                        : " (last 24 hours)";
+
+                String message = enableSecondTargetCheck.isSelected()
+                        ? "Dual-target swaps applied to " + swapped.size() + " meals" + rangeInfo + "."
+                        : "Swaps applied to " + swapped.size() + " meals" + rangeInfo + ".";
+                JOptionPane.showMessageDialog(panel, message);
                 // showProgressDialog();
 
             } catch (NumberFormatException ex) {
@@ -795,7 +1006,121 @@ public class MainUI {
 
     private static JPanel buildSwapCompareTab() {
         JPanel panel = new JPanel(new BorderLayout());
-        JButton loadComparisonButton = new JButton("Compare Swaps (Past 1 day)");
+
+        // Top panel for date range controls
+        JPanel topPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Date Range Selection
+        JCheckBox customRangeCheck = new JCheckBox("Custom Date Range", false);
+        JSpinner startDateSpinner = new JSpinner(new SpinnerDateModel());
+        startDateSpinner.setEditor(new JSpinner.DateEditor(startDateSpinner, "yyyy-MM-dd"));
+        JSpinner endDateSpinner = new JSpinner(new SpinnerDateModel());
+        endDateSpinner.setEditor(new JSpinner.DateEditor(endDateSpinner, "yyyy-MM-dd"));
+
+        // Initially disable date spinners
+        startDateSpinner.setEnabled(false);
+        endDateSpinner.setEnabled(false);
+
+        // Set default dates (yesterday to today)
+        startDateSpinner
+                .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+
+        int row = 0;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        topPanel.add(customRangeCheck, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Quick select buttons
+        JPanel quickSelectPanel2 = new JPanel(new FlowLayout());
+        JButton last24HoursBtn2 = new JButton("Last 24h");
+        JButton last3DaysBtn2 = new JButton("Last 3 days");
+        JButton lastWeekBtn2 = new JButton("Last week");
+        JButton lastMonthBtn2 = new JButton("Last month");
+
+        quickSelectPanel2.add(last24HoursBtn2);
+        quickSelectPanel2.add(last3DaysBtn2);
+        quickSelectPanel2.add(lastWeekBtn2);
+        quickSelectPanel2.add(lastMonthBtn2);
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        topPanel.add(quickSelectPanel2, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Add listeners for quick select buttons
+        last24HoursBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        last3DaysBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(3).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastWeekBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusWeeks(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastMonthBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusMonths(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        topPanel.add(new JLabel("Start Date:"), gbc);
+        gbc.gridx = 1;
+        topPanel.add(startDateSpinner, gbc);
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        topPanel.add(new JLabel("End Date:"), gbc);
+        gbc.gridx = 1;
+        topPanel.add(endDateSpinner, gbc);
+        row++;
+
+        // Add listener to enable/disable date range components
+        customRangeCheck.addActionListener(e -> {
+            boolean enabled = customRangeCheck.isSelected();
+            startDateSpinner.setEnabled(enabled);
+            endDateSpinner.setEnabled(enabled);
+        });
+
+        JButton loadComparisonButton = new JButton("Compare Swaps");
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        topPanel.add(loadComparisonButton, gbc);
+
         JTextArea resultArea = new JTextArea();
         resultArea.setEditable(false);
         resultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -804,7 +1129,36 @@ public class MainUI {
                 showError(panel, "Please log in first.");
                 return;
             }
-            DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+
+            // Create date range based on user selection
+            DateRange range;
+            if (customRangeCheck.isSelected()) {
+                LocalDate startDate = ((Date) startDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+                LocalDate endDate = ((Date) endDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+
+                // Validate date range
+                if (startDate.isAfter(endDate)) {
+                    showError(panel, "Start date cannot be after end date.");
+                    return;
+                }
+
+                // Limit to 90 days to prevent performance issues
+                long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+                if (daysBetween > 90) {
+                    showError(panel, "Date range cannot exceed 90 days. Selected range: " + daysBetween + " days.");
+                    return;
+                }
+
+                range = new DateRange(startDate, endDate);
+                System.out.println("Comparing swaps for custom date range: " + startDate + " to " + endDate + " ("
+                        + daysBetween + " days)");
+            } else {
+                // Default to last 24 hours
+                range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                System.out.println("Comparing swaps for default date range: last 24 hours");
+            }
             List<Meal> originalMeals = intakeLog.getOriginalMealsBetween(currentUser.getUserID(), range);
             if (originalMeals == null || originalMeals.isEmpty()) {
                 showError(panel, "No meals found to compare.");
@@ -849,7 +1203,7 @@ public class MainUI {
             }
             resultArea.setText(sb.toString());
         });
-        panel.add(loadComparisonButton, BorderLayout.NORTH);
+        panel.add(topPanel, BorderLayout.NORTH);
         panel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
         return panel;
     }
