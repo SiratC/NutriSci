@@ -1,91 +1,31 @@
 package org.Handlers.UI;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import javax.swing.JButton;
-import javax.swing.BorderFactory;
-import javax.swing.BoxLayout;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JProgressBar;
-import javax.swing.JScrollPane;
-import javax.swing.JSpinner;
-import javax.swing.JTabbedPane;
-import javax.swing.JTable;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.JTextPane;
-import javax.swing.ListSelectionModel;
-import javax.swing.SpinnerDateModel;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.table.DefaultTableModel;
-
 import org.Dao.FoodNameDAO;
 import org.Dao.NutrientAmountDAO;
-import org.Entity.AlignmentScore;
-import org.Entity.DateRange;
-import org.Entity.Food;
-import org.Entity.FoodGroupStats;
-import org.Entity.FoodName;
-import org.Entity.Meal;
-import org.Entity.NutrientAmount;
-import org.Entity.NutrientStats;
-import org.Entity.Profile;
-import org.Entity.ProgressStatus;
-import org.Entity.SavedSwapRequest;
-import org.Entity.SwapRequest;
-import org.Entity.VisualizationOps;
+import org.Entity.*;
 import org.Enums.CFGVersion;
 import org.Enums.ChartType;
 import org.Enums.NutrientType;
 import org.Enums.Sex;
 import org.Handlers.Controller.MealManager;
 import org.Handlers.Controller.ProfileManager;
-import org.Handlers.Database.DataLoader;
-import org.Handlers.Database.DatabaseFoodNameDAO;
-import org.Handlers.Database.DatabaseNutrientAmountDAO;
-import org.Handlers.Database.DatabaseSavedSwapRequestDAO;
-import org.Handlers.Database.IntakeLog;
-import org.Handlers.Logic.Analyzer;
-import org.Handlers.Logic.AnalyzerFactory;
-import org.Handlers.Logic.CFGComparer;
-import org.Handlers.Logic.DatabaseNutrientLookup;
-import org.Handlers.Logic.NutrientAnalyzer;
-import org.Handlers.Logic.NutrientCalculator;
-import org.Handlers.Logic.SwapEngine;
+import org.Handlers.Database.*;
+import org.Handlers.Logic.*;
 import org.Handlers.Visual.CFGChartFactory;
-import org.Handlers.Visual.TrendChartFactory;
 import org.Handlers.Visual.Visualizer;
-
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.List;
 
 public class MainUI {
 
@@ -306,18 +246,91 @@ public class MainUI {
             JOptionPane.showMessageDialog(panel, profileDetails, "Profile Info", JOptionPane.INFORMATION_MESSAGE);
         });
 
-        JButton nutrientBreakdownBtn = new JButton("Show Nutrient Breakdown (Today)");
-        nutrientBreakdownBtn.addActionListener(e -> showNutrientBreakdown(panel));
+        JButton nutrientBreakdownTodayBtn = new JButton("Show Nutrient Breakdown (Today)");
+        nutrientBreakdownTodayBtn.addActionListener(e -> showNutrientBreakdown(panel));
+
+        JButton nutrientBreakdownRangeBtn = new JButton("Show Nutrient Breakdown (Date Range)");
+        nutrientBreakdownRangeBtn.addActionListener(e -> {
+            if (currentUser == null) {
+                showError(panel, "Please log in first.");
+
+                return;
+            }
+
+            // date and chart type panel
+            JPanel datePanel = new JPanel(new GridLayout(3, 2));
+            datePanel.add(new JLabel("Start Date (YYYY-MM-DD):"));
+            JTextField startDateField = new JTextField(LocalDate.now().minusDays(7).toString());
+            datePanel.add(startDateField);
+
+            datePanel.add(new JLabel("End Date (YYYY-MM-DD):"));
+            JTextField endDateField = new JTextField(LocalDate.now().toString());
+            datePanel.add(endDateField);
+
+            datePanel.add(new JLabel("Chart Type:"));
+            JComboBox<ChartType> chartTypeBox = new JComboBox<>(ChartType.values());
+            datePanel.add(chartTypeBox);
+
+            int result = JOptionPane.showConfirmDialog(panel, datePanel, "Select Date Range & Chart Type", JOptionPane.OK_CANCEL_OPTION);
+
+            if (result == JOptionPane.OK_OPTION) {
+                try {
+                    LocalDate start = LocalDate.parse(startDateField.getText().trim());
+                    LocalDate end = LocalDate.parse(endDateField.getText().trim());
+
+                    if (start.isAfter(end)) {
+                        showError(panel, "Start date must be before end date.");
+                        return;
+                    }
+
+                    ChartType selectedChart = (ChartType) chartTypeBox.getSelectedItem();
+
+                    // Run analyzer
+                    TrendAnalyzer analyzer = new TrendAnalyzer();
+                    TrendResult trend = analyzer.analyzeForDateRange(currentUser.getUserID(), start, end);
+
+                    // Show visual
+                    Visualizer visualizer = new Visualizer();
+                    JFreeChart chart = visualizer.createChartFromTrend(trend, selectedChart);
+                    showChartDialog(panel, chart, selectedChart + " Nutrient Breakdown from " + start + " to " + end);
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    showError(panel, "Invalid date format. Use YYYY-MM-DD.");
+                }
+            }
+        });
 
         JButton editProfileBtn = new JButton("Edit Profile Info");
         editProfileBtn.addActionListener(e -> showEditProfileDialog(panel));
 
         panel.add(viewProfileBtn);
-        panel.add(nutrientBreakdownBtn);
+        panel.add(nutrientBreakdownTodayBtn);
+        panel.add(nutrientBreakdownRangeBtn);
         panel.add(editProfileBtn);
 
         return panel;
     }
+
+    private static void showChartDialog(JPanel parent, JFreeChart chart, String title) {
+        if (chart == null) {
+            JOptionPane.showMessageDialog(parent, "No data available for chart.", "No Chart", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        ChartPanel chartPanel = new ChartPanel(chart);
+        chartPanel.setPreferredSize(new java.awt.Dimension(800, 600));
+
+        JDialog dialog = new JDialog();
+        dialog.setTitle(title);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setSize(850, 650);
+        dialog.setLocationRelativeTo(parent);
+        dialog.add(chartPanel);
+        dialog.setModal(true);
+        dialog.setVisible(true);
+    }
+
 
     private static void openGoalDialog(Component parent) {
         JDialog dialog = new JDialog(mainFrame, "Set Nutrient Goals", true);
