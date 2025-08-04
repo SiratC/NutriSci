@@ -11,8 +11,12 @@ public class DatabaseNutrientLookup implements NutrientLookup {
 
     private final NutrientAmountDAO dao = new DatabaseNutrientAmountDAO();
 
-    private final Map<Integer, NutrientType> idToType = Map.of(203, NutrientType.Protein, 204, NutrientType.Fat, 205,
-            NutrientType.Carbohydrate, 291, NutrientType.Fiber);
+    private final Map<Integer, NutrientType> idToType = Map.of(
+            203, NutrientType.Protein, 
+            204, NutrientType.Fat, 
+            205, NutrientType.Carbohydrate, 
+            291, NutrientType.Fiber, 
+            208, NutrientType.Calories);
 
     @Override
 

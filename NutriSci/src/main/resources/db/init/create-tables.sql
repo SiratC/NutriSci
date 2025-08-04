@@ -73,5 +73,24 @@ CREATE TABLE IF NOT EXISTS MealLogFoodsBeforeSwap (
     PRIMARY KEY (logId, foodId),
     FOREIGN KEY (foodId) REFERENCES FoodName(foodId),
     FOREIGN KEY (logId) REFERENCES MealLogs(id)
+);
+
+-- Table for storing user's saved swap requests for reuse
+CREATE TABLE IF NOT EXISTS SavedSwapRequests (
+    id UUID DEFAULT uuid_generate_v4() NOT NULL,
+    profileId UUID NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    targetNutrient VARCHAR(50) NOT NULL,
+    intensityAmount DECIMAL(10,3) NOT NULL,
+    isPercentage BOOLEAN NOT NULL,
+    secondTargetNutrient VARCHAR(50),
+    secondIntensityAmount DECIMAL(10,3),
+    secondIsPercentage BOOLEAN,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    lastUsedAt TIMESTAMP,
+    
+    PRIMARY KEY (id),
+    FOREIGN KEY (profileId) REFERENCES Profiles(id)
 )
 

@@ -2,6 +2,7 @@ package org.Handlers.Database;
 
 import org.Entity.DateRange;
 import org.Entity.Meal;
+import org.Handlers.Logic.SwapEngine;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -67,7 +68,32 @@ public class IntakeLog {
         }
     }
 
-    // replace meals in DB, store original food items
+    // New method for swap-aware meal updates
+    public void updateMealsFromSwap(UUID userId, SwapEngine.SwapResult swapResult) {
+        try {
+            List<Meal> updatedMeals = swapResult.getMeals();
+            boolean swapsWereApplied = swapResult.swapsWereApplied();
+            
+            Set<LocalDate> affectedDates = new HashSet<>();
+            for (Meal m : updatedMeals) {
+                affectedDates.add(m.getDate());
+            }
+
+            for (Meal meal : updatedMeals) {
+                mealLogDAO.updateMealWithSwapTracking(meal.getId(), meal.getItems(), swapsWereApplied);
+            }
+
+            if (swapsWereApplied) {
+                System.out.println("[IntakeLog] Applied " + swapResult.getSwapCount() + " swaps to meals on: " + affectedDates);
+            } else {
+                System.out.println("[IntakeLog] No swaps applied - meals unchanged on: " + affectedDates);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Legacy method - replace meals in DB, store original food items
     public void updateMeals(UUID userId, List<Meal> updatedMeals) {
         try {
             Set<LocalDate> affectedDates = new HashSet<>();
