@@ -1,24 +1,21 @@
 package org.Handlers.Visual;
-import org.Entity.Food;
-import org.Entity.Meal;
-import org.Entity.NutrientChangeStats;
-import org.Entity.NutrientStats;
-import org.Entity.VisualizationOps;
+
+import org.Entity.*;
 import org.Enums.ChartType;
 import org.Enums.NutrientType;
 import org.Handlers.Logic.DatabaseNutrientLookup;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
+
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.chart.plot.PlotOrientation;
-
 public class Visualizer {
 
     /**
@@ -498,6 +495,92 @@ public class Visualizer {
         
         System.out.println("[Visualizer] Total " + nutrient.name() + ": " + total);
         return total;
+    }
+
+
+    public JFreeChart createChartFromTrend(TrendResult result, ChartType chartType) {
+        Map<LocalDate, NutrientStats> perDayStats = result.getPerDayStats();
+        if (perDayStats == null || perDayStats.isEmpty()) {
+            System.out.println("[Visualizer] No trend data available");
+            return null;
+        }
+
+        switch (chartType) {
+            case LINE:
+                return createLineChart(perDayStats);
+            case BAR:
+                return createBarChart(perDayStats);
+            case PIE:
+                return createPieChart(result.getCumulativeStats());
+            default:
+                throw new IllegalArgumentException("Unsupported chart type: " + chartType);
+        }
+    }
+
+    // line chart
+    private JFreeChart createLineChart(Map<LocalDate, NutrientStats> perDayStats) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        for (Map.Entry<LocalDate, NutrientStats> entry : perDayStats.entrySet()) {
+            String date = entry.getKey().toString();
+            NutrientStats stats = entry.getValue();
+
+            for (Map.Entry<NutrientType, Double> nutrientEntry : stats.getNutrientPercentages().entrySet()) {
+                dataset.addValue(nutrientEntry.getValue(), nutrientEntry.getKey().name(), date);
+            }
+        }
+
+        return ChartFactory.createLineChart(
+            "Daily Nutrient Breakdown (Line Chart)",
+            "Date",
+            "Percentage",
+            dataset,
+            PlotOrientation.VERTICAL,
+            true, true, false
+        );
+    }
+
+    // bar chart
+    private JFreeChart createBarChart(Map<LocalDate, NutrientStats> perDayStats) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        for (Map.Entry<LocalDate, NutrientStats> entry : perDayStats.entrySet()) {
+            String date = entry.getKey().toString();
+            NutrientStats stats = entry.getValue();
+
+            for (Map.Entry<NutrientType, Double> nutrientEntry : stats.getNutrientPercentages().entrySet()) {
+                dataset.addValue(nutrientEntry.getValue(), nutrientEntry.getKey().name(), date);
+            }
+        }
+
+        return ChartFactory.createBarChart(
+            "Daily Nutrient Breakdown (Bar Chart)",
+            "Date",
+            "Percentage",
+            dataset,
+            PlotOrientation.VERTICAL,
+            true, true, false
+        );
+    }
+
+    // pie chart
+    private JFreeChart createPieChart(NutrientStats cumulativeStats) {
+        System.out.println("[Visualizer] Creating PIE chart from TrendResult cumulative stats");
+
+        VisualizationOps ops = new VisualizationOps();
+        Map<String, Double> data = convertToChartData(cumulativeStats, ops);
+
+        if (data.isEmpty()) {
+            System.out.println("[Visualizer] No data to display in PIE chart, adding dummy");
+            data.put("No Data", 1.0);
+        }
+
+        DefaultPieDataset dataset = new DefaultPieDataset();
+        for (Map.Entry<String, Double> entry : data.entrySet()) {
+            dataset.setValue(entry.getKey(), entry.getValue());
+        }
+
+        return ChartFactory.createPieChart("Cumulative Nutrient Breakdown (Pie Chart)", dataset, true, true, false);
     }
 
         public void update(String action, UUID userId, List<Meal> meals) {
