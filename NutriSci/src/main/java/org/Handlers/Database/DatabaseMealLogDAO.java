@@ -268,8 +268,70 @@ public class DatabaseMealLogDAO implements MealLogDAO {
         return meals;
     }
 
+    // New method for swap-aware meal updates that conditionally backs up original meals
+    public void updateMealWithSwapTracking(UUID mealId, List<Food> foods, boolean swapsWereApplied) throws SQLException {
+        if (swapsWereApplied) {
+            // Only backup if swaps were applied AND no backup already exists (preserve originals)
+            if (!hasExistingBackup(mealId)) {
+                String backupSql = """
+                        INSERT INTO MealLogFoodsBeforeSwap (logId, foodId, quantity)
+                        SELECT logId, foodId, quantity
+                        FROM MealLogFoods
+                        WHERE logId = ?
+                        """;
+                try (Connection conn = getConnection();
+                        PreparedStatement ps = conn.prepareStatement(backupSql)) {
+                    ps.setObject(1, mealId);
+                    ps.executeUpdate();
+                }
+                System.out.println("Backed up original meal " + mealId + " before applying swaps");
+            } else {
+                System.out.println("Backup already exists for meal " + mealId + ", preserving original");
+            }
+        }
+
+        // Update the current foods (regardless of whether backup was made)
+        String deleteSql = "DELETE FROM MealLogFoods WHERE logId = ?";
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(deleteSql)) {
+            ps.setObject(1, mealId);
+            ps.executeUpdate();
+        }
+
+        for (Food food : foods) {
+            String foodSql = """
+                    INSERT INTO MealLogFoods (logId, foodId, quantity)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT DO NOTHING
+                    """;
+            try (Connection conn = getConnection();
+                    PreparedStatement foodPs = conn.prepareStatement(foodSql)) {
+                foodPs.setObject(1, mealId);
+                foodPs.setInt(2, food.getFoodID());
+                foodPs.setDouble(3, food.getQuantity());
+                foodPs.executeUpdate();
+            }
+        }
+    }
+
+    // Helper method to check if backup already exists for a meal
+    private boolean hasExistingBackup(UUID mealId) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM MealLogFoodsBeforeSwap WHERE logId = ?";
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, mealId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        }
+        return false;
+    }
+
     @Override
     public void updateMeal(UUID mealId, List<Food> foods) throws SQLException {
+        // Legacy method - always backs up for backward compatibility
         // store current foods in backup table before making changes
         String clearBackupSql = "DELETE FROM MealLogFoodsBeforeSwap WHERE logId = ?";
         try (Connection conn = getConnection();
