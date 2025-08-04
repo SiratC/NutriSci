@@ -71,9 +71,9 @@ public class MealManager {
     public TrendResult applySwapToMeals(SwapRequest req) {
         UUID userId = req.getUser().getUserID();
         List<Meal> og = getMealsInRange(userId, req.getRange());
-        List<Meal> swapped = swapEngine.applySwap(og, req);
-        log.updateMeals(userId, swapped); // update meals in the log
-        return trendAnalyzer.analyze(swapped); // return new trend result
+        SwapEngine.SwapResult swapResult = swapEngine.applySwapWithResult(og, req);
+        log.updateMealsFromSwap(userId, swapResult); // update meals in the log with swap tracking
+        return trendAnalyzer.analyze(swapResult.getMeals()); // return new trend result
     }
 
     /**

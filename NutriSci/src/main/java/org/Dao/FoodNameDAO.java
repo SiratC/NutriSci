@@ -6,7 +6,11 @@ import java.util.List;
 
 public interface FoodNameDAO {
     void insertFoodName(FoodName food) throws SQLException;
+
     String findDescriptionById(int foodId) throws SQLException;
-    List<FoodName> getAllFoodNames() throws SQLException; // for debug
+
+    FoodName findById(int foodId) throws SQLException;
+
+    List<FoodName> getAllFoodNames() throws SQLException;
 
 }

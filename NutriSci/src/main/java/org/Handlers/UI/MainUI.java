@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -36,11 +37,15 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JTextPane;
+import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerDateModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableModel;
 
 import org.Dao.FoodNameDAO;
 import org.Dao.NutrientAmountDAO;
@@ -51,12 +56,11 @@ import org.Entity.FoodGroupStats;
 import org.Entity.FoodName;
 import org.Entity.Meal;
 import org.Entity.NutrientAmount;
-import org.Entity.NutrientChangeStats;
 import org.Entity.NutrientStats;
 import org.Entity.Profile;
 import org.Entity.ProgressStatus;
+import org.Entity.SavedSwapRequest;
 import org.Entity.SwapRequest;
-import org.Entity.TrendResult;
 import org.Entity.VisualizationOps;
 import org.Enums.CFGVersion;
 import org.Enums.ChartType;
@@ -67,6 +71,7 @@ import org.Handlers.Controller.ProfileManager;
 import org.Handlers.Database.DataLoader;
 import org.Handlers.Database.DatabaseFoodNameDAO;
 import org.Handlers.Database.DatabaseNutrientAmountDAO;
+import org.Handlers.Database.DatabaseSavedSwapRequestDAO;
 import org.Handlers.Database.IntakeLog;
 import org.Handlers.Logic.Analyzer;
 import org.Handlers.Logic.AnalyzerFactory;
@@ -75,7 +80,6 @@ import org.Handlers.Logic.DatabaseNutrientLookup;
 import org.Handlers.Logic.NutrientAnalyzer;
 import org.Handlers.Logic.NutrientCalculator;
 import org.Handlers.Logic.SwapEngine;
-import org.Handlers.Logic.SwapTracker;
 import org.Handlers.Visual.CFGChartFactory;
 import org.Handlers.Visual.TrendChartFactory;
 import org.Handlers.Visual.Visualizer;
@@ -89,7 +93,6 @@ public class MainUI {
     private static final MealManager mealManager = MealManager.getInstance();
     private static final IntakeLog intakeLog = new IntakeLog();
     private static final SwapEngine swapEngine = new SwapEngine();
-    private static final SwapTracker swapTracker = new SwapTracker();
     private static final CFGComparer cfgComparer = new CFGComparer();
     private static final AnalyzerFactory analyzerFactory = new AnalyzerFactory();
 
@@ -125,6 +128,7 @@ public class MainUI {
         tabs.addTab("Profile", buildProfileTab());
         tabs.addTab("Meals", buildMealTab());
         tabs.addTab("Swaps", buildSwapTab());
+        tabs.addTab("Saved Swaps", buildSavedSwapsTab());
         tabs.addTab("Analysis", buildAnalysisTab());
         tabs.addTab("Swap Compare", buildSwapCompareTab());
         tabs.addTab("Journal", buildJournalTab());
@@ -721,40 +725,197 @@ public class MainUI {
         gbc.insets = new Insets(8, 10, 8, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        // First target nutrient components
         JComboBox<NutrientType> nutrientBox = new JComboBox<>(NutrientType.values());
         JTextField intensityField = new JTextField("10");
         JCheckBox percentCheck = new JCheckBox("Use Percentage", true);
-        JComboBox<CFGVersion> cfgBox = new JComboBox<>(CFGVersion.values());
+
+        // Second target nutrient components (optional)
+        JCheckBox enableSecondTargetCheck = new JCheckBox("Enable Second Target", false);
+        JComboBox<NutrientType> secondNutrientBox = new JComboBox<>(NutrientType.values());
+        JTextField secondIntensityField = new JTextField("10");
+        JCheckBox secondPercentCheck = new JCheckBox("Use Percentage", true);
+
+        // Initially disable second target components
+        secondNutrientBox.setEnabled(false);
+        secondIntensityField.setEnabled(false);
+        secondPercentCheck.setEnabled(false);
+
         JButton applySwapBtn = new JButton("Apply Swap");
 
+        int row = 0;
+
+        // First target nutrient
         gbc.gridx = 0;
-        gbc.gridy = 0;
-        panel.add(new JLabel("Target Nutrient:"), gbc);
+        gbc.gridy = row;
+        panel.add(new JLabel("First Target:"), gbc);
         gbc.gridx = 1;
         panel.add(nutrientBox, gbc);
+        row++;
 
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy = row;
         panel.add(new JLabel("Intensity:"), gbc);
         gbc.gridx = 1;
         panel.add(intensityField, gbc);
+        row++;
 
         gbc.gridx = 0;
-        gbc.gridy = 2;
-        panel.add(new JLabel("CFG Version:"), gbc);
-        gbc.gridx = 1;
-        panel.add(cfgBox, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = row;
         panel.add(new JLabel("Mode:"), gbc);
         gbc.gridx = 1;
         panel.add(percentCheck, gbc);
+        row++;
+
+        // Enable second target checkbox
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        panel.add(enableSecondTargetCheck, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Second target nutrient (optional)
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("Second Target:"), gbc);
+        gbc.gridx = 1;
+        panel.add(secondNutrientBox, gbc);
+        row++;
 
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = row;
+        panel.add(new JLabel("Second Intensity:"), gbc);
+        gbc.gridx = 1;
+        panel.add(secondIntensityField, gbc);
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("Second Mode:"), gbc);
+        gbc.gridx = 1;
+        panel.add(secondPercentCheck, gbc);
+        row++;
+
+        // Date Range Selection
+        JCheckBox customRangeCheck = new JCheckBox("Custom Date Range", false);
+        JSpinner startDateSpinner = new JSpinner(new SpinnerDateModel());
+        startDateSpinner.setEditor(new JSpinner.DateEditor(startDateSpinner, "yyyy-MM-dd"));
+        JSpinner endDateSpinner = new JSpinner(new SpinnerDateModel());
+        endDateSpinner.setEditor(new JSpinner.DateEditor(endDateSpinner, "yyyy-MM-dd"));
+
+        // Initially disable date spinners
+        startDateSpinner.setEnabled(false);
+        endDateSpinner.setEnabled(false);
+
+        // Set default dates (yesterday to today)
+        startDateSpinner
+                .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
         gbc.gridwidth = 2;
-        panel.add(applySwapBtn, gbc);
+        panel.add(customRangeCheck, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Quick select buttons
+        JPanel quickSelectPanel = new JPanel(new FlowLayout());
+        JButton last24HoursBtn = new JButton("Last 24h");
+        JButton last3DaysBtn = new JButton("Last 3 days");
+        JButton lastWeekBtn = new JButton("Last week");
+        JButton lastMonthBtn = new JButton("Last month");
+
+        quickSelectPanel.add(last24HoursBtn);
+        quickSelectPanel.add(last3DaysBtn);
+        quickSelectPanel.add(lastWeekBtn);
+        quickSelectPanel.add(lastMonthBtn);
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        panel.add(quickSelectPanel, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Add listeners for quick select buttons
+        last24HoursBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        last3DaysBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(3).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastWeekBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusWeeks(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastMonthBtn.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusMonths(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("Start Date:"), gbc);
+        gbc.gridx = 1;
+        panel.add(startDateSpinner, gbc);
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        panel.add(new JLabel("End Date:"), gbc);
+        gbc.gridx = 1;
+        panel.add(endDateSpinner, gbc);
+        row++;
+
+        // Add listener to enable/disable date range components
+        customRangeCheck.addActionListener(e -> {
+            boolean enabled = customRangeCheck.isSelected();
+            startDateSpinner.setEnabled(enabled);
+            endDateSpinner.setEnabled(enabled);
+        });
+
+        // Apply and Save buttons
+        JButton saveSwapBtn = new JButton("Save This Swap");
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(applySwapBtn);
+        buttonPanel.add(saveSwapBtn);
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        panel.add(buttonPanel, gbc);
+
+        // Add listener to enable/disable second target components
+        enableSecondTargetCheck.addActionListener(e -> {
+            boolean enabled = enableSecondTargetCheck.isSelected();
+            secondNutrientBox.setEnabled(enabled);
+            secondIntensityField.setEnabled(enabled);
+            secondPercentCheck.setEnabled(enabled);
+        });
 
         applySwapBtn.addActionListener(e -> {
             if (currentUser == null) {
@@ -764,23 +925,89 @@ public class MainUI {
 
             try {
                 NutrientType nutrient = (NutrientType) nutrientBox.getSelectedItem();
-                CFGVersion cfg = (CFGVersion) cfgBox.getSelectedItem();
                 double intensity = Double.parseDouble(intensityField.getText());
                 boolean isPercent = percentCheck.isSelected();
 
-                DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                // Create date range based on user selection
+                DateRange range;
+                if (customRangeCheck.isSelected()) {
+                    LocalDate startDate = ((Date) startDateSpinner.getValue()).toInstant()
+                            .atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate endDate = ((Date) endDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                            .toLocalDate();
+
+                    // Validate date range
+                    if (startDate.isAfter(endDate)) {
+                        showError(panel, "Start date cannot be after end date.");
+                        return;
+                    }
+
+                    // Limit to 90 days to prevent performance issues
+                    long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+                    if (daysBetween > 90) {
+                        showError(panel, "Date range cannot exceed 90 days. Selected range: " + daysBetween + " days.");
+                        return;
+                    }
+
+                    range = new DateRange(startDate, endDate);
+                    System.out.println(
+                            "Using custom date range: " + startDate + " to " + endDate + " (" + daysBetween + " days)");
+                } else {
+                    // Default to last 24 hours
+                    range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                    System.out.println("Using default date range: last 24 hours");
+                }
                 List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), range);
                 if (meals == null || meals.isEmpty()) {
                     showError(panel, "No meals found in selected range.");
                     return;
                 }
 
-                SwapRequest request = new SwapRequest(currentUser, range, nutrient, cfg,
-                        intensity / (isPercent ? 100.0 : 1.0), isPercent);
-                List<Meal> swapped = swapEngine.applySwap(meals, request);
-                intakeLog.updateMeals(currentUser.getUserID(), swapped);
+                SwapRequest request;
+                if (enableSecondTargetCheck.isSelected()) {
+                    // Create dual target request
+                    NutrientType secondNutrient = (NutrientType) secondNutrientBox.getSelectedItem();
+                    double secondIntensity = Double.parseDouble(secondIntensityField.getText());
+                    boolean secondIsPercent = secondPercentCheck.isSelected();
 
-                JOptionPane.showMessageDialog(panel, "Swaps applied to " + swapped.size() + " meals.");
+                    // Validate that the two target nutrients are different
+                    if (nutrient.equals(secondNutrient)) {
+                        showError(panel, "Second target nutrient must be different from the first.");
+                        return;
+                    }
+
+                    request = new SwapRequest(currentUser, range, nutrient,
+                            intensity / (isPercent ? 100.0 : 1.0), isPercent,
+                            secondNutrient, secondIntensity / (secondIsPercent ? 100.0 : 1.0), secondIsPercent);
+
+                    System.out.println("Applying dual-target swap: " + nutrient + " + " + secondNutrient);
+                } else {
+                    // Create single target request (backward compatibility)
+                    request = new SwapRequest(currentUser, range, nutrient,
+                            intensity / (isPercent ? 100.0 : 1.0), isPercent);
+
+                    System.out.println("Applying single-target swap: " + nutrient);
+                }
+
+                SwapEngine.SwapResult swapResult = swapEngine.applySwapWithResult(meals, request);
+                intakeLog.updateMealsFromSwap(currentUser.getUserID(), swapResult);
+
+                String rangeInfo = customRangeCheck.isSelected()
+                        ? " from " + range.getStart() + " to " + range.getEnd() + " (" + range.getLengthInDays()
+                                + " days)"
+                        : " (last 24 hours)";
+
+                String message;
+                if (swapResult.swapsWereApplied()) {
+                    message = enableSecondTargetCheck.isSelected()
+                            ? "Dual-target: " + swapResult.getSwapCount() + " swaps applied to "
+                                    + swapResult.getMeals().size() + " meals" + rangeInfo + "."
+                            : swapResult.getSwapCount() + " swaps applied to " + swapResult.getMeals().size() + " meals"
+                                    + rangeInfo + ".";
+                } else {
+                    message = "No swaps needed - deficit was too small" + rangeInfo + ".";
+                }
+                JOptionPane.showMessageDialog(panel, message);
                 // showProgressDialog();
 
             } catch (NumberFormatException ex) {
@@ -790,21 +1017,416 @@ public class MainUI {
             }
         });
 
+        // Save swap button action listener
+        saveSwapBtn.addActionListener(e -> {
+            if (currentUser == null) {
+                showError(panel, "Please log in first.");
+                return;
+            }
+
+            try {
+                NutrientType nutrient = (NutrientType) nutrientBox.getSelectedItem();
+                double intensity = Double.parseDouble(intensityField.getText());
+                boolean isPercent = percentCheck.isSelected();
+
+                // Show dialog to get name and description
+                JTextField nameField = new JTextField(20);
+                JTextArea descriptionArea = new JTextArea(3, 20);
+                descriptionArea.setLineWrap(true);
+                descriptionArea.setWrapStyleWord(true);
+
+                JPanel savePanel = new JPanel(new GridBagLayout());
+                GridBagConstraints sgbc = new GridBagConstraints();
+                sgbc.insets = new Insets(5, 5, 5, 5);
+                sgbc.fill = GridBagConstraints.HORIZONTAL;
+
+                sgbc.gridx = 0;
+                sgbc.gridy = 0;
+                savePanel.add(new JLabel("Name:"), sgbc);
+                sgbc.gridx = 1;
+                savePanel.add(nameField, sgbc);
+
+                sgbc.gridx = 0;
+                sgbc.gridy = 1;
+                savePanel.add(new JLabel("Description:"), sgbc);
+                sgbc.gridx = 1;
+                savePanel.add(new JScrollPane(descriptionArea), sgbc);
+
+                int result = JOptionPane.showConfirmDialog(panel, savePanel, "Save Swap Configuration",
+                        JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+                if (result == JOptionPane.OK_OPTION) {
+                    String name = nameField.getText().trim();
+                    if (name.isEmpty()) {
+                        showError(panel, "Please enter a name for this swap.");
+                        return;
+                    }
+
+                    String description = descriptionArea.getText().trim();
+
+                    try {
+                        SavedSwapRequest savedSwap;
+                        if (enableSecondTargetCheck.isSelected()) {
+                            NutrientType secondNutrient = (NutrientType) secondNutrientBox.getSelectedItem();
+                            double secondIntensity = Double.parseDouble(secondIntensityField.getText());
+                            boolean secondIsPercent = secondPercentCheck.isSelected();
+
+                            // Validate that the two target nutrients are different
+                            if (nutrient.equals(secondNutrient)) {
+                                showError(panel, "Second target nutrient must be different from the first.");
+                                return;
+                            }
+
+                            savedSwap = new SavedSwapRequest(currentUser.getUserID(), name, description,
+                                    nutrient, intensity / (isPercent ? 100.0 : 1.0), isPercent,
+                                    secondNutrient, secondIntensity / (secondIsPercent ? 100.0 : 1.0), secondIsPercent);
+                        } else {
+                            savedSwap = new SavedSwapRequest(currentUser.getUserID(), name, description,
+                                    nutrient, intensity / (isPercent ? 100.0 : 1.0), isPercent);
+                        }
+
+                        DatabaseSavedSwapRequestDAO dao = new DatabaseSavedSwapRequestDAO();
+                        UUID savedId = dao.save(savedSwap);
+
+                        String swapType = enableSecondTargetCheck.isSelected() ? "Dual-target" : "Single-target";
+                        JOptionPane.showMessageDialog(panel,
+                                swapType + " swap '" + name + "' saved successfully!\nTargets: "
+                                        + savedSwap.getTargetDescription());
+
+                    } catch (Exception ex) {
+                        showError(panel, "Failed to save swap: " + ex.getMessage());
+                    }
+                }
+
+            } catch (NumberFormatException ex) {
+                showError(panel, "Invalid intensity values.");
+            }
+        });
+
+        return panel;
+    }
+
+    private static JPanel buildSavedSwapsTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // Top panel with controls
+        JPanel topPanel = new JPanel(new FlowLayout());
+        JButton refreshBtn = new JButton("Refresh List");
+        JButton deleteBtn = new JButton("Delete Selected");
+        deleteBtn.setEnabled(false);
+
+        topPanel.add(refreshBtn);
+        topPanel.add(deleteBtn);
+
+        panel.add(topPanel, BorderLayout.NORTH);
+
+        // Create table model and table for saved swaps
+        String[] columnNames = { "Name", "Description", "Targets", "Created", "Last Used" };
+        DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // Make table read-only
+            }
+        };
+
+        JTable savedSwapsTable = new JTable(tableModel);
+        savedSwapsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        savedSwapsTable.getTableHeader().setReorderingAllowed(false);
+
+        // Set column widths
+        savedSwapsTable.getColumnModel().getColumn(0).setPreferredWidth(150); // Name
+        savedSwapsTable.getColumnModel().getColumn(1).setPreferredWidth(200); // Description
+        savedSwapsTable.getColumnModel().getColumn(2).setPreferredWidth(200); // Targets
+        savedSwapsTable.getColumnModel().getColumn(3).setPreferredWidth(150); // Created
+        savedSwapsTable.getColumnModel().getColumn(4).setPreferredWidth(150); // Last Used
+
+        JScrollPane tableScrollPane = new JScrollPane(savedSwapsTable);
+        panel.add(tableScrollPane, BorderLayout.CENTER);
+
+        // Bottom panel with application controls
+        JPanel bottomPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Date range selection for application
+        JCheckBox customRangeCheck = new JCheckBox("Custom Date Range", false);
+        JSpinner startDateSpinner = new JSpinner(new SpinnerDateModel());
+        startDateSpinner.setEditor(new JSpinner.DateEditor(startDateSpinner, "yyyy-MM-dd"));
+        JSpinner endDateSpinner = new JSpinner(new SpinnerDateModel());
+        endDateSpinner.setEditor(new JSpinner.DateEditor(endDateSpinner, "yyyy-MM-dd"));
+
+        // Initially disable date spinners
+        startDateSpinner.setEnabled(false);
+        endDateSpinner.setEnabled(false);
+
+        // Set default dates (yesterday to today)
+        startDateSpinner
+                .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+
+        int row = 0;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 3;
+        bottomPanel.add(customRangeCheck, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        bottomPanel.add(new JLabel("Start Date:"), gbc);
+        gbc.gridx = 1;
+        bottomPanel.add(startDateSpinner, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = ++row;
+        bottomPanel.add(new JLabel("End Date:"), gbc);
+        gbc.gridx = 1;
+        bottomPanel.add(endDateSpinner, gbc);
+
+        // Application buttons
+        JButton applyToRangeBtn = new JButton("Apply to Date Range");
+        JButton applyToAllBtn = new JButton("Apply to All Meals");
+
+        applyToRangeBtn.setEnabled(false);
+        applyToAllBtn.setEnabled(false);
+
+        gbc.gridx = 0;
+        gbc.gridy = ++row;
+        bottomPanel.add(applyToRangeBtn, gbc);
+        gbc.gridx = 1;
+        bottomPanel.add(applyToAllBtn, gbc);
+
+        panel.add(bottomPanel, BorderLayout.SOUTH);
+
+        // Add listener to enable/disable date range components
+        customRangeCheck.addActionListener(e -> {
+            boolean enabled = customRangeCheck.isSelected();
+            startDateSpinner.setEnabled(enabled);
+            endDateSpinner.setEnabled(enabled);
+        });
+
+        // Table selection listener
+        savedSwapsTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                boolean hasSelection = savedSwapsTable.getSelectedRow() != -1;
+                deleteBtn.setEnabled(hasSelection);
+                applyToRangeBtn.setEnabled(hasSelection);
+                applyToAllBtn.setEnabled(hasSelection);
+            }
+        });
+
+        // Refresh button listener
+        refreshBtn.addActionListener(e -> loadSavedSwaps(tableModel));
+
+        // Delete button listener
+        deleteBtn.addActionListener(e -> {
+            int selectedRow = savedSwapsTable.getSelectedRow();
+            if (selectedRow != -1) {
+                String swapName = (String) tableModel.getValueAt(selectedRow, 0);
+                int confirm = JOptionPane.showConfirmDialog(panel,
+                        "Are you sure you want to delete the saved swap '" + swapName + "'?",
+                        "Confirm Delete", JOptionPane.YES_NO_OPTION);
+
+                if (confirm == JOptionPane.YES_OPTION) {
+                    try {
+                        // Get the SavedSwapRequest object stored in the table model
+                        SavedSwapRequest savedSwap = getSavedSwapFromTable(tableModel, selectedRow);
+                        DatabaseSavedSwapRequestDAO dao = new DatabaseSavedSwapRequestDAO();
+                        dao.delete(savedSwap.getId());
+
+                        JOptionPane.showMessageDialog(panel, "Saved swap '" + swapName + "' deleted successfully.");
+                        loadSavedSwaps(tableModel); // Refresh the list
+
+                    } catch (Exception ex) {
+                        showError(panel, "Failed to delete saved swap: " + ex.getMessage());
+                    }
+                }
+            }
+        });
+
+        // Apply to range button listener
+        applyToRangeBtn.addActionListener(e -> {
+            int selectedRow = savedSwapsTable.getSelectedRow();
+            if (selectedRow != -1) {
+                applySavedSwap(panel, tableModel, selectedRow, customRangeCheck, startDateSpinner, endDateSpinner,
+                        false);
+            }
+        });
+
+        // Apply to all button listener
+        applyToAllBtn.addActionListener(e -> {
+            int selectedRow = savedSwapsTable.getSelectedRow();
+            if (selectedRow != -1) {
+                applySavedSwap(panel, tableModel, selectedRow, customRangeCheck, startDateSpinner, endDateSpinner,
+                        true);
+            }
+        });
+
+        // Load initial data
+        loadSavedSwaps(tableModel);
+
         return panel;
     }
 
     private static JPanel buildSwapCompareTab() {
         JPanel panel = new JPanel(new BorderLayout());
-        JButton loadComparisonButton = new JButton("Compare Swaps (Past 1 day)");
-        JTextArea resultArea = new JTextArea();
-        resultArea.setEditable(false);
-        resultArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+
+        // Top panel for date range controls
+        JPanel topPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 10, 8, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Date Range Selection
+        JCheckBox customRangeCheck = new JCheckBox("Custom Date Range", false);
+        JSpinner startDateSpinner = new JSpinner(new SpinnerDateModel());
+        startDateSpinner.setEditor(new JSpinner.DateEditor(startDateSpinner, "yyyy-MM-dd"));
+        JSpinner endDateSpinner = new JSpinner(new SpinnerDateModel());
+        endDateSpinner.setEditor(new JSpinner.DateEditor(endDateSpinner, "yyyy-MM-dd"));
+
+        // Initially disable date spinners
+        startDateSpinner.setEnabled(false);
+        endDateSpinner.setEnabled(false);
+
+        // Set default dates (yesterday to today)
+        startDateSpinner
+                .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+
+        int row = 0;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        topPanel.add(customRangeCheck, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Quick select buttons
+        JPanel quickSelectPanel2 = new JPanel(new FlowLayout());
+        JButton last24HoursBtn2 = new JButton("Last 24h");
+        JButton last3DaysBtn2 = new JButton("Last 3 days");
+        JButton lastWeekBtn2 = new JButton("Last week");
+        JButton lastMonthBtn2 = new JButton("Last month");
+
+        quickSelectPanel2.add(last24HoursBtn2);
+        quickSelectPanel2.add(last3DaysBtn2);
+        quickSelectPanel2.add(lastWeekBtn2);
+        quickSelectPanel2.add(lastMonthBtn2);
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        topPanel.add(quickSelectPanel2, gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        // Add listeners for quick select buttons
+        last24HoursBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        last3DaysBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner
+                    .setValue(Date.from(LocalDate.now().minusDays(3).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastWeekBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusWeeks(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        lastMonthBtn2.addActionListener(e -> {
+            customRangeCheck.setSelected(true);
+            startDateSpinner.setEnabled(true);
+            endDateSpinner.setEnabled(true);
+            startDateSpinner.setValue(
+                    Date.from(LocalDate.now().minusMonths(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            endDateSpinner.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        });
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        topPanel.add(new JLabel("Start Date:"), gbc);
+        gbc.gridx = 1;
+        topPanel.add(startDateSpinner, gbc);
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        topPanel.add(new JLabel("End Date:"), gbc);
+        gbc.gridx = 1;
+        topPanel.add(endDateSpinner, gbc);
+        row++;
+
+        // Add listener to enable/disable date range components
+        customRangeCheck.addActionListener(e -> {
+            boolean enabled = customRangeCheck.isSelected();
+            startDateSpinner.setEnabled(enabled);
+            endDateSpinner.setEnabled(enabled);
+        });
+
+        JButton loadComparisonButton = new JButton("Compare Swaps");
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        topPanel.add(loadComparisonButton, gbc);
+
+        JTextPane resultPane = new JTextPane();
+        resultPane.setContentType("text/html");
+        resultPane.setEditable(false);
+
         loadComparisonButton.addActionListener(e -> {
             if (currentUser == null) {
                 showError(panel, "Please log in first.");
                 return;
             }
-            DateRange range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+
+            // Create date range based on user selection
+            DateRange range;
+            if (customRangeCheck.isSelected()) {
+                LocalDate startDate = ((Date) startDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+                LocalDate endDate = ((Date) endDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+
+                // Validate date range
+                if (startDate.isAfter(endDate)) {
+                    showError(panel, "Start date cannot be after end date.");
+                    return;
+                }
+
+                // Limit to 90 days to prevent performance issues
+                long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+                if (daysBetween > 90) {
+                    showError(panel, "Date range cannot exceed 90 days. Selected range: " + daysBetween + " days.");
+                    return;
+                }
+
+                range = new DateRange(startDate, endDate);
+                System.out.println("Comparing swaps for custom date range: " + startDate + " to " + endDate + " ("
+                        + daysBetween + " days)");
+            } else {
+                // Default to last 24 hours
+                range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                System.out.println("Comparing swaps for default date range: last 24 hours");
+            }
             List<Meal> originalMeals = intakeLog.getOriginalMealsBetween(currentUser.getUserID(), range);
             if (originalMeals == null || originalMeals.isEmpty()) {
                 showError(panel, "No meals found to compare.");
@@ -822,35 +1444,64 @@ public class MainUI {
             currentMeals = loadCaloriesForMeals(currentMeals);
 
             NutrientCalculator calc = new NutrientCalculator(new DatabaseNutrientLookup());
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder("<html><body style='font-family:monospace;'>");
+
             for (int i = 0; i < originalMeals.size(); i++) {
                 Meal orig = originalMeals.get(i);
                 Meal swap = currentMeals.get(i);
-                sb.append("\nDate: ").append(orig.getDate()).append("\n");
-                sb.append("Original Meal:\n");
+
+                sb.append("<h3>Date: ").append(orig.getDate()).append("</h3>");
+
+                sb.append("<b>Original Meal:</b><ul>");
                 for (Food f : orig.getItems()) {
-                    sb.append(" - ").append(f).append("\n");
+                    sb.append("<li>").append(f.getName()).append(" (").append(f.getQuantity()).append("g)</li>");
                 }
-                Map<NutrientType, Double> origNutrients = calc.calculate(orig);
-                sb.append("\nSwapped Meal:\n");
+                sb.append("</ul>");
+
+                sb.append("<b>Swapped Meal:</b><ul>");
                 for (Food f : swap.getItems()) {
-                    sb.append(" - ").append(f).append("\n");
+                    String itemStr = f.getName() + " (" + f.getQuantity() + "g)";
+                    boolean isNew = orig.getItems().stream()
+                            .noneMatch(of -> of.getName().equalsIgnoreCase(f.getName()));
+                    if (isNew) {
+                        sb.append("<li><span style='color:blue;font-weight:bold;'>").append(itemStr)
+                                .append("</span></li>");
+                    } else {
+                        sb.append("<li>").append(itemStr).append("</li>");
+                    }
                 }
+                sb.append("</ul>");
+
+                Map<NutrientType, Double> origNutrients = calc.calculate(orig);
                 Map<NutrientType, Double> swapNutrients = calc.calculate(swap);
-                sb.append("\nNutrient Comparison:\n");
+
+                sb.append("<b>Nutrient Comparison:</b>");
+                sb.append("<table border='1' cellspacing='0' cellpadding='4'>");
+                sb.append("<tr><th>Nutrient</th><th>Before</th><th>After</th><th>Change</th></tr>");
+
                 for (NutrientType t : NutrientType.values()) {
                     double before = origNutrients.getOrDefault(t, 0.0);
                     double after = swapNutrients.getOrDefault(t, 0.0);
                     double diff = after - before;
-                    String change = diff > 0 ? "↑" : (diff < 0 ? "↓" : "→");
-                    sb.append(String.format(" %s: %.1f → %.1f (%+.1f) %s\n", t, before, after, diff, change));
+                    String arrow = diff > 0 ? "↑" : (diff < 0 ? "↓" : "→");
+
+                    sb.append("<tr>");
+                    sb.append("<td>").append(t.name()).append("</td>");
+                    sb.append("<td>").append(String.format("%.1f", before)).append("</td>");
+                    sb.append("<td>").append(String.format("%.1f", after)).append("</td>");
+                    sb.append("<td>").append(String.format("%+.1f %s", diff, arrow)).append("</td>");
+                    sb.append("</tr>");
                 }
-                sb.append("\n-----------------------------------\n");
+                sb.append("</table><hr>");
             }
-            resultArea.setText(sb.toString());
+
+            sb.append("</body></html>");
+            resultPane.setText(sb.toString());
+            resultPane.setCaretPosition(0);
         });
-        panel.add(loadComparisonButton, BorderLayout.NORTH);
-        panel.add(new JScrollPane(resultArea), BorderLayout.CENTER);
+
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(resultPane), BorderLayout.CENTER);
         return panel;
     }
 
@@ -936,17 +1587,30 @@ public class MainUI {
             }
         }
 
-        double protein = nutrientMap.getOrDefault(NutrientType.Protein, 0.0);
-        double carbs = nutrientMap.getOrDefault(NutrientType.Carbohydrate, 0.0);
-        double fat = nutrientMap.getOrDefault(NutrientType.Fat, 0.0);
-        double estimatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
-
         StringBuilder breakdown = new StringBuilder("Today's Nutrient Breakdown:\n\n");
+
+        // Display all nutrients including actual calories
         for (NutrientType type : NutrientType.values()) {
             double value = nutrientMap.getOrDefault(type, 0.0);
-            breakdown.append(type.name()).append(": ").append(String.format("%.2f", value)).append("\n");
+            breakdown.append(type.name()).append(": ").append(String.format("%.2f", value));
+            if (type == NutrientType.Calories) {
+                breakdown.append(" kcal");
+            } else {
+                breakdown.append("g");
+            }
+            breakdown.append("\n");
         }
-        breakdown.append("\nEstimated Calories: ").append(String.format("%.2f", estimatedCalories)).append(" calories");
+
+        // Add estimation note if calories are missing from database
+        double actualCalories = nutrientMap.getOrDefault(NutrientType.Calories, 0.0);
+        if (actualCalories <= 0) {
+            double protein = nutrientMap.getOrDefault(NutrientType.Protein, 0.0);
+            double carbs = nutrientMap.getOrDefault(NutrientType.Carbohydrate, 0.0);
+            double fat = nutrientMap.getOrDefault(NutrientType.Fat, 0.0);
+            double estimatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
+            breakdown.append("\nNote: Estimated Calories (fallback): ").append(String.format("%.2f", estimatedCalories))
+                    .append(" kcal");
+        }
 
         JOptionPane.showMessageDialog(parent, breakdown.toString(), "Nutrient Breakdown",
                 JOptionPane.INFORMATION_MESSAGE);
@@ -984,12 +1648,19 @@ public class MainUI {
 
                 Map<NutrientType, Double> nutrientMap = calc.calculate(meal);
 
-                double protein = nutrientMap.getOrDefault(NutrientType.Protein, 0.0);
-                double carbs = nutrientMap.getOrDefault(NutrientType.Carbohydrate, 0.0);
-                double fat = nutrientMap.getOrDefault(NutrientType.Fat, 0.0);
-
-                double estimatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
-                sb.append("Estimated Calories: ").append(String.format("%.2f", estimatedCalories)).append(" kcal\n\n");
+                // Use actual calories from database, fallback to estimation if not available
+                double actualCalories = nutrientMap.getOrDefault(NutrientType.Calories, 0.0);
+                if (actualCalories > 0) {
+                    sb.append("Calories: ").append(String.format("%.2f", actualCalories)).append(" kcal\n\n");
+                } else {
+                    // Fallback to estimation if database calories are missing
+                    double protein = nutrientMap.getOrDefault(NutrientType.Protein, 0.0);
+                    double carbs = nutrientMap.getOrDefault(NutrientType.Carbohydrate, 0.0);
+                    double fat = nutrientMap.getOrDefault(NutrientType.Fat, 0.0);
+                    double estimatedCalories = (protein * 4) + (carbs * 4) + (fat * 9);
+                    sb.append("Estimated Calories: ").append(String.format("%.2f", estimatedCalories))
+                            .append(" kcal\n\n");
+                }
 
             }
 
@@ -1002,255 +1673,961 @@ public class MainUI {
     }
 
     private static JPanel buildAnalysisTab() {
-        JPanel panel = new JPanel(new GridLayout(8, 1));
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // Configuration Panel (North)
+        JPanel configPanel = new JPanel(new GridBagLayout());
+        configPanel.setBorder(BorderFactory.createTitledBorder("Analysis Configuration"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        // Analyzer Type Selection
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        configPanel.add(new JLabel("Analyzer Type:"), gbc);
+
+        String[] analyzerTypes = { "NutrientAnalyzer", "FoodGroupAnalyzer", "CFGComparer" };
+        JComboBox<String> analyzerTypeBox = new JComboBox<>(analyzerTypes);
+        gbc.gridx = 1;
+        configPanel.add(analyzerTypeBox, gbc);
+
+        // Chart Type Selection
+        gbc.gridx = 2;
+        gbc.gridy = 0;
+        configPanel.add(new JLabel("Chart Type:"), gbc);
 
         JComboBox<ChartType> chartTypeBox = new JComboBox<>(ChartType.values());
-        panel.add(new JLabel("Choose Chart Type:"));
-        panel.add(chartTypeBox);
+        gbc.gridx = 3;
+        configPanel.add(chartTypeBox, gbc);
 
-        JButton btnTrend = new JButton("Run TrendAnalyzer");
-        JButton btnSwapTrack = new JButton("Run SwapTracker");
-        JButton btnFG = new JButton("Run FoodGroupAnalyzer");
-        JButton btnCFG = new JButton("Run CFGComparer");
-        JButton btnNutri = new JButton("Run NutrientAnalyzer");
+        // Date Range Selection
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        configPanel.add(new JLabel("Start Date:"), gbc);
 
-        // TrendAnalyzer runs
-        btnTrend.addActionListener(e -> {
-            Analyzer<List<Meal>, TrendResult> trendAnalyzer = analyzerFactory.createTrendAnalyzer();
-            List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
+        LocalDate defaultStart = LocalDate.now().minusDays(7); // Default to last 7 days
+        Date defaultStartDate = Date.from(defaultStart.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        JSpinner startDateSpinner = new JSpinner(
+                new SpinnerDateModel(defaultStartDate, null, null, java.util.Calendar.DAY_OF_MONTH));
+        JSpinner.DateEditor startDateEditor = new JSpinner.DateEditor(startDateSpinner, "yyyy-MM-dd");
+        startDateSpinner.setEditor(startDateEditor);
+        gbc.gridx = 1;
+        configPanel.add(startDateSpinner, gbc);
 
-            if (meals == null || meals.isEmpty()) {
-                showError(panel, "No meals found for analysis.");
+        gbc.gridx = 2;
+        gbc.gridy = 1;
+        configPanel.add(new JLabel("End Date:"), gbc);
 
-                return;
-            }
+        LocalDate defaultEnd = LocalDate.now();
+        Date defaultEndDate = Date.from(defaultEnd.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        JSpinner endDateSpinner = new JSpinner(
+                new SpinnerDateModel(defaultEndDate, null, null, java.util.Calendar.DAY_OF_MONTH));
+        JSpinner.DateEditor endDateEditor = new JSpinner.DateEditor(endDateSpinner, "yyyy-MM-dd");
+        endDateSpinner.setEditor(endDateEditor);
+        gbc.gridx = 3;
+        configPanel.add(endDateSpinner, gbc);
 
-            TrendResult result = trendAnalyzer.analyze(meals);
-            System.out.println("[TrendAnalyzer] Meals: " + result);
+        // Nutrient Filter Selection
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        configPanel.add(new JLabel("Nutrients:"), gbc);
 
-            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(),
-                    false);
-            ChartType selectedType = ops.getChartType();
-            ChartPanel chartPanel;
+        JPanel nutrientPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JCheckBox proteinCB = new JCheckBox("Protein", true);
+        JCheckBox carbsCB = new JCheckBox("Carbohydrate", true);
+        JCheckBox fatCB = new JCheckBox("Fat", true);
+        JCheckBox fiberCB = new JCheckBox("Fiber", true);
+        JCheckBox caloriesCB = new JCheckBox("Calories", true);
 
-            switch (selectedType) {
+        nutrientPanel.add(proteinCB);
+        nutrientPanel.add(carbsCB);
+        nutrientPanel.add(fatCB);
+        nutrientPanel.add(fiberCB);
+        nutrientPanel.add(caloriesCB);
 
-                case PIE -> {
-                    Visualizer visualizer = new Visualizer();
-                    Map<String, Double> pieData = visualizer.convertToChartData(result.getCumulativeStats(), ops);
-                    chartPanel = Visualizer.createPieChartPanel(pieData, "Cumulative Nutrient Breakdown");
-                }
-                case BAR -> {
-                    JFreeChart chart = TrendChartFactory.createTrendBarChart(result);
-                    chartPanel = new ChartPanel(chart);
-                }
-                case LINE -> {
-                    JFreeChart chart = TrendChartFactory.createTrendLineChart(result);
-                    chartPanel = new ChartPanel(chart);
-                }
-                default -> {
-                    showError(panel, "Invalid chart type.");
+        gbc.gridx = 1;
+        gbc.gridwidth = 3;
+        configPanel.add(nutrientPanel, gbc);
 
+        // Before/After Swap Comparison Toggle
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 1;
+        configPanel.add(new JLabel("Show Swap Comparison:"), gbc);
+
+        JCheckBox showSwapComparisonCB = new JCheckBox("Before/After Swaps");
+        gbc.gridx = 1;
+        configPanel.add(showSwapComparisonCB, gbc);
+
+        panel.add(configPanel, BorderLayout.NORTH);
+
+        // Action Panel (South)
+        JPanel actionPanel = new JPanel(new FlowLayout());
+        JButton analyzeButton = new JButton("Run Analysis");
+
+        // Unified Analysis Action Handler
+        analyzeButton.addActionListener(e -> {
+            try {
+                // Validate user is logged in
+                if (currentUser == null) {
+                    showError(panel, "Please log in first.");
                     return;
                 }
-            }
 
-            JFrame chartFrame = new JFrame("Trend Analysis Chart");
-            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            chartFrame.add(chartPanel);
-            chartFrame.pack();
-            chartFrame.setLocationRelativeTo(null);
-            chartFrame.setVisible(true);
-        });
+                // Get configuration values
+                String selectedAnalyzer = (String) analyzerTypeBox.getSelectedItem();
+                ChartType selectedChartType = (ChartType) chartTypeBox.getSelectedItem();
+                boolean showSwapComparison = showSwapComparisonCB.isSelected();
 
-        // SwapTracker runs
-        btnSwapTrack.addActionListener(e -> {
-            List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
-            if (meals == null || meals.isEmpty()) {
-                showError(panel, "No meals found.");
+                // Get date range
+                Date startDate = (Date) startDateSpinner.getValue();
+                Date endDate = (Date) endDateSpinner.getValue();
+                LocalDate startLocalDate = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                LocalDate endLocalDate = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 
-                return;
-            }
-
-            NutrientChangeStats result = swapTracker.analyze(meals);
-            System.out.println("[SwapTracker] Results: " + result);
-
-            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(),
-                    false);
-            Visualizer visualizer = new Visualizer();
-            Map<String, Map<String, Double>> chartData = visualizer.convertToChartData(result, ops);
-
-            ChartType selectedType = ops.getChartType();
-            ChartPanel chartPanel;
-
-            switch (selectedType) {
-
-                case PIE -> {
-                    Map<String, Double> combined = new HashMap<>();
-                    chartData.values().forEach(map -> map.forEach((k, v) -> combined.merge(k, v, Double::sum)));
-                    chartPanel = Visualizer.createPieChartPanel(combined, "Swap Tracker Pie View");
-                }
-
-                case BAR -> chartPanel = Visualizer.createBarChartFromTimeSeries(chartData, "Swap Tracker Bar View");
-
-                case LINE -> chartPanel = Visualizer.createLineChartFromTimeSeries(chartData, "Swap Tracker Line View");
-
-                default -> {
-                    showError(panel, "Invalid chart type.");
-
+                if (startLocalDate.isAfter(endLocalDate)) {
+                    showError(panel, "Start date must be before end date.");
                     return;
                 }
-            }
 
-            JFrame chartFrame = new JFrame("Swap Tracker Chart");
-            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            chartFrame.add(chartPanel);
-            chartFrame.pack();
-            chartFrame.setLocationRelativeTo(null);
-            chartFrame.setVisible(true);
-        });
+                DateRange dateRange = new DateRange(startLocalDate, endLocalDate);
 
-        // FoodGroupAnalyzer runs
-        btnFG.addActionListener(e -> {
+                // Get selected nutrients
+                List<NutrientType> selectedNutrients = new ArrayList<>();
+                if (proteinCB.isSelected())
+                    selectedNutrients.add(NutrientType.Protein);
+                if (carbsCB.isSelected())
+                    selectedNutrients.add(NutrientType.Carbohydrate);
+                if (fatCB.isSelected())
+                    selectedNutrients.add(NutrientType.Fat);
+                if (fiberCB.isSelected())
+                    selectedNutrients.add(NutrientType.Fiber);
+                if (caloriesCB.isSelected())
+                    selectedNutrients.add(NutrientType.Calories);
 
-            Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
-            FoodGroupStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
-            System.out.println("[FoodGroupAnalyzer] Results: " + result);
-
-            Map<String, Double> chartData = new HashMap<>();
-
-            result.getGroupPercentages().forEach((k, v) -> chartData.put(k.name(), v));
-
-            ChartType selectedType = (ChartType) chartTypeBox.getSelectedItem();
-            ChartPanel chartPanel;
-
-            switch (selectedType) {
-
-                case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "Food Group Pie View");
-                case BAR -> chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Food Group Bar View");
-                case LINE -> chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Food Group Line View");
-                default -> {
-                    showError(panel, "Invalid chart type.");
-
+                if (selectedNutrients.isEmpty()) {
+                    showError(panel, "Please select at least one nutrient.");
                     return;
                 }
-            }
 
-            JFrame chartFrame = new JFrame("Food Group Chart");
-            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            chartFrame.add(chartPanel);
-            chartFrame.pack();
-            chartFrame.setLocationRelativeTo(null);
-            chartFrame.setVisible(true);
+                // Create VisualizationOps with user selections
+                VisualizationOps ops = new VisualizationOps(dateRange, selectedNutrients,
+                        selectedNutrients.size(), true, selectedChartType, showSwapComparison);
 
-        });
-
-        // CFGComparer runs
-        btnCFG.addActionListener(e -> {
-            if (currentUser == null) {
-                showError(panel, "Please log in first.");
-                return;
-            }
-
-            List<Meal> meals = intakeLog.getAll(currentUser.getUserID());
-            if (meals == null || meals.isEmpty()) {
-                showError(panel, "No meals found.");
-                return;
-            }
-
-            Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
-            FoodGroupStats stats = analyzer.analyze(meals);
-            AlignmentScore result = cfgComparer.analyze(stats, CFGVersion.V2019);
-            System.out.println("[CFGComparer] Score: " + result);
-
-            ChartType selectedType = (ChartType) chartTypeBox.getSelectedItem();
-            ChartPanel chartPanel;
-
-            switch (selectedType) {
-                case PIE -> {
-                    JFreeChart chart = CFGChartFactory.createGroupAlignmentPieChart(result);
-                    chartPanel = new ChartPanel(chart);
-                }
-                case BAR -> {
-                    JFreeChart chart = CFGChartFactory.createGroupAlignmentBarChart(result);
-                    chartPanel = new ChartPanel(chart);
-                }
-                case LINE -> {
-                    Map<String, Double> chartData = Map.of("Alignment Score", result.getScore());
-                    chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "CFGComparer Line View");
-                }
-                default -> {
-                    showError(panel, "Invalid chart type.");
+                // Get meals based on date range using proper database filtering
+                List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), dateRange);
+                if (meals == null || meals.isEmpty()) {
+                    showError(panel, "No meals found in the selected date range.");
                     return;
                 }
-            }
 
-            JLabel scoreLabel = new JLabel(String.format("Average Alignment Score: %.1f%%", result.getScore()));
-            scoreLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            scoreLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+                // For swap comparison, also get original meals
+                List<Meal> originalMeals = null;
+                if (showSwapComparison) {
+                    System.out.println("[MainUI] Attempting to retrieve original meals for comparison");
+                    originalMeals = intakeLog.getOriginalMealsBetween(currentUser.getUserID(), dateRange);
 
-            JPanel wrapper = new JPanel();
-            wrapper.setLayout(new BorderLayout());
-            wrapper.add(scoreLabel, BorderLayout.NORTH);
-            wrapper.add(chartPanel, BorderLayout.CENTER);
-
-            JFrame chartFrame = new JFrame("CFGComparer Chart");
-            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            chartFrame.add(wrapper);
-            chartFrame.pack();
-            chartFrame.setLocationRelativeTo(null);
-            chartFrame.setVisible(true);
-        });
-
-        // NutrientAnalyzer runs
-        btnNutri.addActionListener(e -> {
-
-            Analyzer<List<Meal>, NutrientStats> analyzer = analyzerFactory.createNutrientAnalyzer();
-            NutrientStats result = analyzer.analyze(intakeLog.getAll(currentUser.getUserID()));
-            System.out.println("[NutrientAnalyzer] Top 3 Nutrients: " + result.getTopNutrients());
-
-            VisualizationOps ops = new VisualizationOps(null, null, 3, true, (ChartType) chartTypeBox.getSelectedItem(),
-                    false);
-            Visualizer visualizer = new Visualizer();
-            Map<String, Double> chartData = visualizer.convertToChartData(result, ops);
-
-            ChartType selectedType = ops.getChartType();
-            ChartPanel chartPanel;
-
-            switch (selectedType) {
-
-                case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "Nutrient Analyzer Pie View");
-                case BAR ->
-                    chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Nutrient Analyzer Bar View");
-                case LINE ->
-                    chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Nutrient Analyzer Line View");
-                default -> {
-                    showError(panel, "Invalid chart type.");
-
-                    return;
+                    if (originalMeals == null || originalMeals.isEmpty()) {
+                        System.out
+                                .println("[MainUI] No original meal data found - proceeding with empty 'BEFORE' data");
+                        // Create empty list instead of failing - allows comparison with placeholder
+                        // "BEFORE" chart
+                        originalMeals = new ArrayList<>();
+                    } else {
+                        System.out.println("[MainUI] Found " + originalMeals.size() + " original meals for comparison");
+                    }
                 }
+
+                // Run the selected analyzer with comparison data if needed
+                if (showSwapComparison) {
+                    System.out.println("[MainUI] Running comparison analysis with original meals: " +
+                            (originalMeals != null ? originalMeals.size() : "NULL"));
+                    runComparisonAnalysis(selectedAnalyzer, originalMeals, meals, ops, panel);
+                } else {
+                    runAnalysis(selectedAnalyzer, meals, ops, panel);
+                }
+
+            } catch (Exception ex) {
+                showError(panel, "Analysis failed: " + ex.getMessage());
+                ex.printStackTrace();
             }
-
-            JFrame chartFrame = new JFrame("Nutrient Analyzer Chart");
-            chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            chartFrame.add(chartPanel);
-            chartFrame.pack();
-            chartFrame.setLocationRelativeTo(null);
-            chartFrame.setVisible(true);
-
         });
 
-        panel.add(btnTrend);
-        panel.add(btnSwapTrack);
-        panel.add(btnFG);
-        panel.add(btnCFG);
-        panel.add(btnNutri);
+        actionPanel.add(analyzeButton);
+        panel.add(actionPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
-    private static void showError(Component parent, String msg) {
+    // Helper method to run the selected analysis
+    private static void runAnalysis(String analyzerType, List<Meal> meals, VisualizationOps ops, JPanel parentPanel) {
+        try {
+            System.out.println("[MainUI] Starting analysis: " + analyzerType);
+            System.out.println("[MainUI] Meals count: " + meals.size());
+            System.out.println("[MainUI] Chart type: " + ops.getChartType());
+            System.out.println("[MainUI] Selected nutrients: " + ops.getNutrients());
 
+            ChartPanel chartPanel = null;
+            String chartTitle = analyzerType;
+
+            switch (analyzerType) {
+                case "FoodGroupAnalyzer" -> {
+                    System.out.println("[MainUI] Running FoodGroupAnalyzer...");
+                    Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
+                    FoodGroupStats result = analyzer.analyze(meals);
+                    System.out.println(
+                            "[MainUI] FoodGroupAnalyzer completed. Result: " + (result != null ? "SUCCESS" : "NULL"));
+                    if (result != null) {
+                        System.out.println(
+                                "[MainUI] Group percentages: " + result.getGroupPercentages().size() + " groups");
+                    }
+
+                    Map<String, Double> chartData = new HashMap<>();
+                    result.getGroupPercentages().forEach((k, v) -> chartData.put(k.name(), v));
+                    System.out.println("[MainUI] Converted chart data size: " + chartData.size());
+
+                    switch (ops.getChartType()) {
+                        case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "Food Group Distribution");
+                        case BAR ->
+                            chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Food Group Bar View");
+                        case LINE ->
+                            chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Food Group Line View");
+                    }
+                    chartTitle = "Food Group Analysis";
+                }
+
+                case "CFGComparer" -> {
+                    System.out.println("[MainUI] Running CFGComparer...");
+                    Analyzer<List<Meal>, FoodGroupStats> analyzer = analyzerFactory.createFoodGroupAnalyzer();
+                    FoodGroupStats stats = analyzer.analyze(meals);
+                    System.out.println("[MainUI] FoodGroupStats for CFG: " + (stats != null ? "SUCCESS" : "NULL"));
+                    AlignmentScore result = cfgComparer.analyze(stats, CFGVersion.V2019);
+                    System.out.println(
+                            "[MainUI] CFGComparer completed. Score: " + (result != null ? result.getScore() : "NULL"));
+
+                    switch (ops.getChartType()) {
+                        case PIE -> {
+                            JFreeChart chart = CFGChartFactory.createGroupAlignmentPieChart(result);
+                            chartPanel = new ChartPanel(chart);
+                        }
+                        case BAR -> {
+                            JFreeChart chart = CFGChartFactory.createGroupAlignmentBarChart(result);
+                            chartPanel = new ChartPanel(chart);
+                        }
+                        case LINE -> {
+                            Map<String, Double> chartData = Map.of("Alignment Score", result.getScore());
+                            chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "CFG Alignment Score");
+                        }
+                    }
+
+                    // Add score label for CFG
+                    JLabel scoreLabel = new JLabel(String.format("Average Alignment Score: %.1f%%", result.getScore()));
+                    scoreLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                    scoreLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+                    JPanel wrapper = new JPanel(new BorderLayout());
+                    wrapper.add(scoreLabel, BorderLayout.NORTH);
+                    wrapper.add(chartPanel, BorderLayout.CENTER);
+
+                    JFrame chartFrame = new JFrame("CFG Comparison");
+                    chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                    chartFrame.add(wrapper);
+                    chartFrame.pack();
+                    chartFrame.setLocationRelativeTo(null);
+                    chartFrame.setVisible(true);
+                    return; // Early return for CFG special case
+                }
+
+                case "NutrientAnalyzer" -> {
+                    System.out.println("[MainUI] Running NutrientAnalyzer...");
+                    Analyzer<List<Meal>, NutrientStats> analyzer = analyzerFactory.createNutrientAnalyzer();
+                    NutrientStats result = analyzer.analyze(meals);
+                    System.out.println(
+                            "[MainUI] NutrientAnalyzer completed. Result: " + (result != null ? "SUCCESS" : "NULL"));
+                    if (result != null) {
+                        System.out.println("[MainUI] Top nutrients: " + result.getTopNutrients().size() + " nutrients");
+                        System.out.println("[MainUI] Total items: " + result.getTotalItems());
+                    }
+
+                    Visualizer visualizer = new Visualizer();
+                    Map<String, Double> chartData = visualizer.convertToChartData(result, ops);
+                    System.out.println("[MainUI] Converted chart data size: " + chartData.size());
+
+                    switch (ops.getChartType()) {
+                        case PIE -> chartPanel = Visualizer.createPieChartPanel(chartData, "Nutrient Distribution");
+                        case BAR ->
+                            chartPanel = Visualizer.createBarChartFromSimpleData(chartData, "Nutrient Bar View");
+                        case LINE ->
+                            chartPanel = Visualizer.createLineChartFromSimpleData(chartData, "Nutrient Line View");
+                    }
+                    chartTitle = "Nutrient Analysis";
+                }
+
+                default -> {
+                    showError(parentPanel, "Unknown analyzer type: " + analyzerType);
+                    return;
+                }
+            }
+
+            if (chartPanel == null) {
+                System.out.println("[MainUI] ERROR: chartPanel is null!");
+                showError(parentPanel, "Failed to generate chart.");
+                return;
+            }
+
+            System.out.println("[MainUI] Chart created successfully, displaying in new frame");
+            // Display the chart on EDT
+            final ChartPanel finalChartPanel = chartPanel;
+            final String finalTitle = chartTitle + " - " + ops.getChartType();
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    System.out.println("[MainUI] Creating chart frame on EDT");
+                    JFrame chartFrame = new JFrame(finalTitle);
+                    chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                    chartFrame.add(finalChartPanel);
+                    chartFrame.pack();
+                    chartFrame.setLocationRelativeTo(null);
+                    chartFrame.setVisible(true);
+                    System.out.println("[MainUI] Chart frame displayed successfully");
+                } catch (Exception frameEx) {
+                    System.err.println("[MainUI] Error displaying chart frame: " + frameEx.getMessage());
+                    frameEx.printStackTrace();
+                }
+            });
+
+        } catch (Exception ex) {
+            showError(parentPanel, "Analysis failed: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    // Helper method to run comparison analysis (before/after swaps)
+    private static void runComparisonAnalysis(String analyzerType, List<Meal> originalMeals, List<Meal> currentMeals,
+            VisualizationOps ops, JPanel parentPanel) {
+        try {
+            System.out.println("[MainUI] Starting comparison analysis: " + analyzerType);
+            System.out.println("[MainUI] Original meals: " + (originalMeals != null ? originalMeals.size() : "NULL"));
+            System.out.println("[MainUI] Current meals: " + (currentMeals != null ? currentMeals.size() : "NULL"));
+
+            // Validate that we have meaningful swap data
+            if (!hasValidSwapData(originalMeals)) {
+                showError(parentPanel,
+                        "No swap history available for comparison. Perform meal swaps first to see before/after analysis.");
+                return;
+            }
+
+            System.out.println("[MainUI] Chart type: " + ops.getChartType());
+            System.out.println("[MainUI] Selected nutrients: " + ops.getNutrients());
+
+            JPanel beforeChartPanel = null;
+            JPanel afterChartPanel = null;
+            Map<String, Map<String, Double>> summaryData = null;
+            String chartTitle = analyzerType + " - Before/After Swap Comparison";
+
+            // Run analyzer-specific comparison based on selected analyzer type
+            switch (analyzerType) {
+                case "FoodGroupAnalyzer" -> {
+                    System.out.println("[MainUI] Running FoodGroupAnalyzer comparison");
+                    Analyzer<List<Meal>, FoodGroupStats> foodGroupAnalyzer = analyzerFactory.createFoodGroupAnalyzer();
+
+                    FoodGroupStats beforeResult = foodGroupAnalyzer.analyze(originalMeals);
+                    FoodGroupStats afterResult = foodGroupAnalyzer.analyze(currentMeals);
+
+                    Map<String, Map<String, Double>> comparisonData = prepareFoodGroupComparisonData(beforeResult,
+                            afterResult);
+                    summaryData = comparisonData;
+                    beforeChartPanel = createComparisonChart(comparisonData.get("Before"), "BEFORE SWAPS - Food Groups",
+                            ops.getChartType());
+                    afterChartPanel = createComparisonChart(comparisonData.get("After"), "AFTER SWAPS - Food Groups",
+                            ops.getChartType());
+                }
+                case "NutrientAnalyzer" -> {
+                    System.out.println("[MainUI] Running NutrientAnalyzer comparison");
+                    Analyzer<List<Meal>, NutrientStats> nutrientAnalyzer = analyzerFactory.createNutrientAnalyzer();
+
+                    NutrientStats beforeResult = nutrientAnalyzer.analyze(originalMeals);
+                    NutrientStats afterResult = nutrientAnalyzer.analyze(currentMeals);
+
+                    Map<String, Map<String, Double>> comparisonData = prepareNutrientAnalyzerComparisonData(
+                            beforeResult, afterResult, ops);
+                    summaryData = comparisonData;
+                    beforeChartPanel = createComparisonChart(comparisonData.get("Before"), "BEFORE SWAPS - Nutrients",
+                            ops.getChartType());
+                    afterChartPanel = createComparisonChart(comparisonData.get("After"), "AFTER SWAPS - Nutrients",
+                            ops.getChartType());
+                }
+                case "CFGComparer" -> {
+                    System.out.println("[MainUI] Running CFGComparer comparison");
+                    Analyzer<List<Meal>, FoodGroupStats> foodGroupAnalyzer = analyzerFactory.createFoodGroupAnalyzer();
+
+                    FoodGroupStats beforeStats = foodGroupAnalyzer.analyze(originalMeals);
+                    FoodGroupStats afterStats = foodGroupAnalyzer.analyze(currentMeals);
+
+                    AlignmentScore beforeResult = cfgComparer.analyze(beforeStats, CFGVersion.V2019);
+                    AlignmentScore afterResult = cfgComparer.analyze(afterStats, CFGVersion.V2019);
+
+                    Map<String, Map<String, Double>> comparisonData = prepareCFGComparisonData(beforeResult,
+                            afterResult);
+                    // Create CFG-specific summary data that includes overall scores
+                    summaryData = prepareCFGSummaryData(beforeResult, afterResult);
+
+                    // Create charts with food group details only
+                    JPanel beforeChart = createComparisonChart(comparisonData.get("Before"),
+                            "BEFORE SWAPS - CFG Alignment", ops.getChartType());
+                    JPanel afterChart = createComparisonChart(comparisonData.get("After"),
+                            "AFTER SWAPS - CFG Alignment", ops.getChartType());
+
+                    // Add score labels above each chart (similar to single CFG mode)
+                    double beforeScore = beforeResult != null ? beforeResult.getScore() : 0.0;
+                    double afterScore = afterResult != null ? afterResult.getScore() : 0.0;
+
+                    JLabel beforeScoreLabel = new JLabel(String.format("Before Swaps: %.1f%%", beforeScore));
+                    beforeScoreLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                    beforeScoreLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+                    JLabel afterScoreLabel = new JLabel(String.format("After Swaps: %.1f%%", afterScore));
+                    afterScoreLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                    afterScoreLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+                    // Wrap each chart with its score label
+                    JPanel beforeWrapper = new JPanel(new BorderLayout());
+                    beforeWrapper.add(beforeScoreLabel, BorderLayout.NORTH);
+                    beforeWrapper.add(beforeChart, BorderLayout.CENTER);
+
+                    JPanel afterWrapper = new JPanel(new BorderLayout());
+                    afterWrapper.add(afterScoreLabel, BorderLayout.NORTH);
+                    afterWrapper.add(afterChart, BorderLayout.CENTER);
+
+                    // Use the wrapped panels as chart panels
+                    beforeChartPanel = beforeWrapper;
+                    afterChartPanel = afterWrapper;
+                }
+                default -> {
+                    System.out.println("[MainUI] ERROR: Unknown analyzer type for comparison: " + analyzerType);
+                    showError(parentPanel, "Unknown analyzer type: " + analyzerType);
+                    return;
+                }
+            }
+
+            if (beforeChartPanel == null || afterChartPanel == null) {
+                System.out.println("[MainUI] ERROR: Failed to generate comparison charts");
+                showError(parentPanel, "Failed to generate comparison charts for " + analyzerType);
+                return;
+            }
+
+            System.out.println(
+                    "[MainUI] Both analyzer-specific charts created successfully, preparing side-by-side display");
+
+            // Add summary information
+            JPanel summaryPanel = createComparisonSummary(summaryData, ops.getNutrients());
+
+            // Create side-by-side chart panel
+            JPanel chartsPanel = new JPanel(new GridLayout(1, 2, 10, 0)); // 1 row, 2 columns, 10px horizontal gap
+            chartsPanel.add(beforeChartPanel);
+            chartsPanel.add(afterChartPanel);
+
+            // Create wrapper panel with summary at top and side-by-side charts below
+            JPanel wrapper = new JPanel(new BorderLayout());
+            wrapper.add(summaryPanel, BorderLayout.NORTH);
+            wrapper.add(chartsPanel, BorderLayout.CENTER);
+
+            // Display the comparison charts on EDT (consistent with regular analysis)
+            final JPanel finalWrapper = wrapper;
+            final String finalTitle = chartTitle;
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    System.out.println("[MainUI] Creating comparison chart frame on EDT");
+                    JFrame chartFrame = new JFrame(finalTitle);
+                    chartFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                    chartFrame.add(finalWrapper);
+                    chartFrame.pack();
+                    chartFrame.setLocationRelativeTo(null);
+                    chartFrame.setVisible(true);
+                    System.out.println("[MainUI] Comparison chart frame displayed successfully");
+                } catch (Exception frameEx) {
+                    System.err.println("[MainUI] Error displaying comparison chart frame: " + frameEx.getMessage());
+                    frameEx.printStackTrace();
+                }
+            });
+
+        } catch (Exception ex) {
+            showError(parentPanel, "Comparison analysis failed: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    // Helper method to distinguish between food group data and nutrient data
+    private static boolean isFoodGroupData(Map<String, Double> data) {
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        
+        // Check for nutrient-specific keys that definitively indicate nutrient data
+        // These keys only exist in NutrientType, not in FoodGroup
+        if (data.containsKey("Carbohydrate") || data.containsKey("Fat") || 
+            data.containsKey("Fiber") || data.containsKey("Calories")) {
+            return false; // Definitely nutrient data
+        }
+        
+        // Check for food group-specific keys that don't conflict with nutrients
+        // These keys only exist in FoodGroup, not in NutrientType
+        return data.containsKey("Grains") || data.containsKey("Vegetables") || 
+               data.containsKey("Fruit") || data.containsKey("Dairy");
+    }
+
+    // Helper method to create summary panel showing differences
+    private static JPanel createComparisonSummary(Map<String, Map<String, Double>> comparisonData,
+            List<NutrientType> nutrients) {
+        JPanel summaryPanel = new JPanel(new GridLayout(0, 1));
+        summaryPanel.setBorder(BorderFactory.createTitledBorder("Swap Impact Summary"));
+
+        Map<String, Double> beforeData = comparisonData.get("Before");
+        Map<String, Double> afterData = comparisonData.get("After");
+
+        // Check if this is CFG alignment data (contains "Overall Alignment" key)
+        boolean isCFGData = (beforeData != null && beforeData.containsKey("Overall Alignment")) ||
+                (afterData != null && afterData.containsKey("Overall Alignment"));
+        
+        // Check if this is Food Group data using robust detection method
+        boolean isFoodGroupData = false;
+        if (!isCFGData) {
+            // Check both before and after data for food group indicators
+            isFoodGroupData = isFoodGroupData(beforeData) || isFoodGroupData(afterData);
+        }
+
+        if (isCFGData) {
+            // Handle CFG alignment summary
+            createCFGAlignmentSummary(summaryPanel, beforeData, afterData);
+        } else if (isFoodGroupData) {
+            // Handle food group percentage summary
+            createFoodGroupSummary(summaryPanel, beforeData, afterData);
+        } else {
+            // Handle regular nutrient summary
+            createNutrientSummary(summaryPanel, beforeData, afterData, nutrients);
+        }
+
+        return summaryPanel;
+    }
+    
+    private static void createFoodGroupSummary(JPanel summaryPanel, Map<String, Double> beforeData, Map<String, Double> afterData) {
+        // Check if we have original data or not
+        boolean hasOriginalData = beforeData != null && beforeData.values().stream().anyMatch(v -> v > 0.0);
+
+        if (!hasOriginalData) {
+            // Add informational message when no swap history exists
+            JLabel infoLabel = new JLabel("No swap history found - showing current food group distribution only");
+            infoLabel.setForeground(Color.BLUE.darker());
+            infoLabel.setFont(infoLabel.getFont().deriveFont(Font.ITALIC));
+            summaryPanel.add(infoLabel);
+
+            // Show current food group percentages
+            JLabel currentLabel = new JLabel("Current Food Group Distribution:");
+            currentLabel.setFont(currentLabel.getFont().deriveFont(Font.BOLD));
+            summaryPanel.add(currentLabel);
+
+            // Order food groups logically
+            String[] orderedGroups = {"Grains", "Vegetables", "Fruit", "Protein", "Dairy", "Other"};
+            for (String groupName : orderedGroups) {
+                double percentage = afterData.getOrDefault(groupName, 0.0);
+                if (percentage > 0.0) {
+                    String currentText = String.format("  %s: %.1f%%", groupName, percentage);
+                    JLabel currentValueLabel = new JLabel(currentText);
+                    summaryPanel.add(currentValueLabel);
+                }
+            }
+        } else {
+            // Show food group percentage changes
+            JLabel changesLabel = new JLabel("Food Group Distribution Changes:");
+            changesLabel.setFont(changesLabel.getFont().deriveFont(Font.BOLD));
+            summaryPanel.add(changesLabel);
+
+            // Show significant food group changes (threshold: 2% change)
+            boolean hasSignificantChanges = false;
+            String[] orderedGroups = {"Grains", "Vegetables", "Fruit", "Protein", "Dairy", "Other"};
+            
+            for (String groupName : orderedGroups) {
+                double before = beforeData.getOrDefault(groupName, 0.0);
+                double after = afterData.getOrDefault(groupName, 0.0);
+                double change = after - before;
+
+                if (Math.abs(change) >= 2.0) { // Show changes >= 2%
+                    hasSignificantChanges = true;
+                    String changeText = String.format("  %s: %.1f%% → %.1f%% (%.1f%% %s)",
+                            groupName, before, after, Math.abs(change),
+                            change >= 0 ? "increase" : "decrease");
+
+                    JLabel changeLabel = new JLabel(changeText);
+                    changeLabel.setForeground(change >= 0 ? Color.GREEN.darker() : Color.RED.darker());
+                    summaryPanel.add(changeLabel);
+                }
+            }
+
+            if (!hasSignificantChanges) {
+                JLabel noChangesLabel = new JLabel("  No significant food group changes (< 2%)");
+                noChangesLabel.setForeground(Color.GRAY);
+                noChangesLabel.setFont(noChangesLabel.getFont().deriveFont(Font.ITALIC));
+                summaryPanel.add(noChangesLabel);
+            }
+        }
+    }
+
+    private static void createCFGAlignmentSummary(JPanel summaryPanel, Map<String, Double> beforeData,
+            Map<String, Double> afterData) {
+        // Check if we have original data or not
+        boolean hasOriginalData = beforeData != null && beforeData.values().stream().anyMatch(v -> v > 0.0);
+
+        if (!hasOriginalData) {
+            // Add informational message when no swap history exists
+            JLabel infoLabel = new JLabel("No swap history found - showing current CFG alignment only");
+            infoLabel.setForeground(Color.BLUE.darker());
+            infoLabel.setFont(infoLabel.getFont().deriveFont(Font.ITALIC));
+            summaryPanel.add(infoLabel);
+
+            // Show current alignment score
+            double currentOverall = afterData.getOrDefault("Overall Alignment", 0.0);
+            JLabel currentLabel = new JLabel(String.format("Current Overall Alignment: %.1f%%", currentOverall));
+            currentLabel.setFont(currentLabel.getFont().deriveFont(Font.BOLD));
+            summaryPanel.add(currentLabel);
+        } else {
+            // Show CFG alignment changes
+            double beforeOverall = beforeData.getOrDefault("Overall Alignment", 0.0);
+            double afterOverall = afterData.getOrDefault("Overall Alignment", 0.0);
+            double overallChange = afterOverall - beforeOverall;
+
+            String overallText = String.format("Overall Alignment: %.1f%% → %.1f%% (%.1f%% %s)",
+                    beforeOverall, afterOverall, Math.abs(overallChange),
+                    overallChange >= 0 ? "improvement" : "decline");
+
+            JLabel overallLabel = new JLabel(overallText);
+            overallLabel.setFont(overallLabel.getFont().deriveFont(Font.BOLD));
+            overallLabel.setForeground(overallChange >= 0 ? Color.GREEN.darker() : Color.RED.darker());
+            summaryPanel.add(overallLabel);
+
+            // Show significant food group changes (threshold: 5% change)
+            JLabel groupChangesLabel = new JLabel("Significant Food Group Changes:");
+            groupChangesLabel.setFont(groupChangesLabel.getFont().deriveFont(Font.BOLD));
+            summaryPanel.add(groupChangesLabel);
+
+            boolean hasSignificantChanges = false;
+            for (String key : beforeData.keySet()) {
+                if (!"Overall Alignment".equals(key)) { // Skip overall score, show food groups only
+                    double before = beforeData.getOrDefault(key, 0.0);
+                    double after = afterData.getOrDefault(key, 0.0);
+                    double change = after - before;
+
+                    if (Math.abs(change) >= 5.0) { // Show changes >= 5%
+                        hasSignificantChanges = true;
+                        String changeText = String.format("  %s: %.1f%% → %.1f%% (%.1f%% %s)",
+                                key, before, after, Math.abs(change),
+                                change >= 0 ? "improvement" : "decline");
+
+                        JLabel changeLabel = new JLabel(changeText);
+                        changeLabel.setForeground(change >= 0 ? Color.GREEN.darker() : Color.RED.darker());
+                        summaryPanel.add(changeLabel);
+                    }
+                }
+            }
+
+            if (!hasSignificantChanges) {
+                JLabel noChangesLabel = new JLabel("  No significant food group changes (< 5%)");
+                noChangesLabel.setForeground(Color.GRAY);
+                noChangesLabel.setFont(noChangesLabel.getFont().deriveFont(Font.ITALIC));
+                summaryPanel.add(noChangesLabel);
+            }
+        }
+    }
+
+    private static void createNutrientSummary(JPanel summaryPanel, Map<String, Double> beforeData,
+            Map<String, Double> afterData, List<NutrientType> nutrients) {
+        // Check if we have original data or not
+        boolean hasOriginalData = beforeData != null && beforeData.values().stream().anyMatch(v -> v > 0.0);
+
+        if (!hasOriginalData) {
+            // Add informational message when no swap history exists
+            JLabel infoLabel = new JLabel("No swap history found - showing current meals vs. no original data");
+            infoLabel.setForeground(Color.BLUE.darker());
+            infoLabel.setFont(infoLabel.getFont().deriveFont(Font.ITALIC));
+            summaryPanel.add(infoLabel);
+
+            // Show current meal values only
+            JLabel currentLabel = new JLabel("Current Meal Totals:");
+            currentLabel.setFont(currentLabel.getFont().deriveFont(Font.BOLD));
+            summaryPanel.add(currentLabel);
+
+            for (NutrientType nutrient : nutrients) {
+                String nutrientName = nutrient.name();
+                double after = afterData.getOrDefault(nutrientName, 0.0);
+
+                String currentText = String.format("  %s: %.1fg", nutrientName, after);
+                JLabel currentValueLabel = new JLabel(currentText);
+                summaryPanel.add(currentValueLabel);
+            }
+        } else {
+            // Show normal before/after comparison when we have original data
+            for (NutrientType nutrient : nutrients) {
+                String nutrientName = nutrient.name();
+                double before = beforeData.getOrDefault(nutrientName, 0.0);
+                double after = afterData.getOrDefault(nutrientName, 0.0);
+                double change = after - before;
+                double percentChange = before > 0 ? ((change / before) * 100) : 0;
+
+                String changeText = String.format("%s: %.1fg → %.1fg (%.1f%% %s)",
+                        nutrientName, before, after, Math.abs(percentChange),
+                        change >= 0 ? "increase" : "decrease");
+
+                JLabel changeLabel = new JLabel(changeText);
+                changeLabel.setForeground(change >= 0 ? Color.GREEN.darker() : Color.RED.darker());
+                summaryPanel.add(changeLabel);
+            }
+        }
+    }
+
+    private static void showError(Component parent, String msg) {
         JOptionPane.showMessageDialog(parent, "Error:  " + msg, "", JOptionPane.ERROR_MESSAGE);
     }
+
+    // Helper methods for Saved Swaps functionality
+    private static void loadSavedSwaps(DefaultTableModel tableModel) {
+        if (currentUser == null)
+            return;
+
+        try {
+            DatabaseSavedSwapRequestDAO dao = new DatabaseSavedSwapRequestDAO();
+            List<SavedSwapRequest> savedSwaps = dao.findByProfileId(currentUser.getUserID());
+
+            // Clear existing data
+            tableModel.setRowCount(0);
+
+            // Add saved swaps to table
+            for (SavedSwapRequest savedSwap : savedSwaps) {
+                Object[] rowData = {
+                        savedSwap.getName(),
+                        savedSwap.getDescription() != null ? savedSwap.getDescription() : "",
+                        savedSwap.getTargetDescription(),
+                        savedSwap.getCreatedAt().toLocalDate().toString(),
+                        savedSwap.getLastUsedAt() != null ? savedSwap.getLastUsedAt().toLocalDate().toString() : "Never"
+                };
+                tableModel.addRow(rowData);
+            }
+
+        } catch (Exception e) {
+            System.err.println("Failed to load saved swaps: " + e.getMessage());
+        }
+    }
+
+    private static SavedSwapRequest getSavedSwapFromTable(DefaultTableModel tableModel, int row) throws Exception {
+        if (currentUser == null)
+            throw new Exception("User not logged in");
+
+        String name = (String) tableModel.getValueAt(row, 0);
+        DatabaseSavedSwapRequestDAO dao = new DatabaseSavedSwapRequestDAO();
+        List<SavedSwapRequest> matches = dao.findByProfileIdAndName(currentUser.getUserID(), name);
+
+        for (SavedSwapRequest savedSwap : matches) {
+            if (savedSwap.getName().equals(name)) {
+                return savedSwap;
+            }
+        }
+        throw new Exception("Saved swap not found: " + name);
+    }
+
+    private static void applySavedSwap(JPanel panel, DefaultTableModel tableModel, int selectedRow,
+            JCheckBox customRangeCheck, JSpinner startDateSpinner, JSpinner endDateSpinner, boolean applyToAll) {
+
+        if (currentUser == null) {
+            showError(panel, "Please log in first.");
+            return;
+        }
+
+        try {
+            SavedSwapRequest savedSwap = getSavedSwapFromTable(tableModel, selectedRow);
+
+            DateRange range;
+            String rangeDescription;
+
+            if (applyToAll) {
+                // Apply to all meals ever - use a very wide date range
+                range = new DateRange(LocalDate.of(2000, 1, 1), LocalDate.now().plusDays(1));
+                rangeDescription = "meals";
+            } else if (customRangeCheck.isSelected()) {
+                LocalDate startDate = ((Date) startDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+                LocalDate endDate = ((Date) endDateSpinner.getValue()).toInstant().atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+
+                // Validate date range
+                if (startDate.isAfter(endDate)) {
+                    showError(panel, "Start date cannot be after end date.");
+                    return;
+                }
+
+                // Limit to 90 days to prevent performance issues
+                long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+                if (daysBetween > 90) {
+                    showError(panel, "Date range cannot exceed 90 days. Selected range: " + daysBetween + " days.");
+                    return;
+                }
+
+                range = new DateRange(startDate, endDate);
+                rangeDescription = "meals from " + startDate + " to " + endDate + " (" + daysBetween + " days)";
+            } else {
+                // Default to last 24 hours
+                range = new DateRange(LocalDate.now().minusDays(1), LocalDate.now());
+                rangeDescription = "meals from last 24 hours";
+            }
+
+            // Get meals in the specified range
+            List<Meal> meals = intakeLog.getMealsBetween(currentUser.getUserID(), range);
+            if (meals == null || meals.isEmpty()) {
+                showError(panel, "No meals found in selected range.");
+                return;
+            }
+
+            // Convert SavedSwapRequest to SwapRequest and apply
+            SwapRequest swapRequest = savedSwap.toSwapRequest(currentUser, range);
+            SwapEngine.SwapResult swapResult = swapEngine.applySwapWithResult(meals, swapRequest);
+
+            // Update meals in database
+            intakeLog.updateMealsFromSwap(currentUser.getUserID(), swapResult);
+
+            // Update last used timestamp if swaps were applied
+            if (swapResult.swapsWereApplied()) {
+                DatabaseSavedSwapRequestDAO dao = new DatabaseSavedSwapRequestDAO();
+                dao.updateLastUsedAt(savedSwap.getId());
+            }
+
+            // Show success message
+            String swapType = savedSwap.hasSecondTarget() ? "Dual-target" : "Single-target";
+            String message;
+            if (swapResult.swapsWereApplied()) {
+                message = swapType + " swap '" + savedSwap.getName() + "': " + swapResult.getSwapCount() +
+                        " swaps applied to " + swapResult.getMeals().size() + " " + rangeDescription + ".\n" +
+                        "Targets: " + savedSwap.getTargetDescription();
+            } else {
+                message = swapType + " swap '" + savedSwap.getName() + "' - no swaps needed (deficit too small) for " +
+                        rangeDescription + ".\nTargets: " + savedSwap.getTargetDescription();
+            }
+            JOptionPane.showMessageDialog(panel, message);
+
+            // Refresh the table to update the "Last Used" column
+            loadSavedSwaps(tableModel);
+
+        } catch (Exception ex) {
+            showError(panel, "Failed to apply saved swap: " + ex.getMessage());
+        }
+    }
+
+    // Helper method to validate if we have meaningful swap data
+    private static boolean hasValidSwapData(List<Meal> originalMeals) {
+        if (originalMeals == null || originalMeals.isEmpty()) {
+            return false;
+        }
+
+        // Check if original meals actually have food items (not empty meals)
+        int totalItems = 0;
+        for (Meal meal : originalMeals) {
+            totalItems += meal.getItems().size();
+        }
+
+        return totalItems > 0;
+    }
+
+    // Helper method to create comparison chart with proper chart type handling
+    private static JPanel createComparisonChart(Map<String, Double> data, String title, ChartType chartType) {
+        if (data == null || data.isEmpty()) {
+            return null;
+        }
+        return Visualizer.createSingleChart(data, title, chartType);
+    }
+
+    // Helper methods for analyzer-specific comparison data preparation
+
+    private static Map<String, Map<String, Double>> prepareFoodGroupComparisonData(FoodGroupStats beforeResult,
+            FoodGroupStats afterResult) {
+        Map<String, Map<String, Double>> comparisonData = new HashMap<>();
+
+        Map<String, Double> beforeData = new HashMap<>();
+        Map<String, Double> afterData = new HashMap<>();
+
+        if (beforeResult != null) {
+            beforeResult.getGroupPercentages().forEach((k, v) -> beforeData.put(k.name(), v));
+        }
+
+        if (afterResult != null) {
+            afterResult.getGroupPercentages().forEach((k, v) -> afterData.put(k.name(), v));
+        }
+
+        comparisonData.put("Before", beforeData);
+        comparisonData.put("After", afterData);
+
+        return comparisonData;
+    }
+
+    private static Map<String, Map<String, Double>> prepareNutrientAnalyzerComparisonData(NutrientStats beforeResult,
+            NutrientStats afterResult, VisualizationOps ops) {
+        Map<String, Map<String, Double>> comparisonData = new HashMap<>();
+
+        Visualizer visualizer = new Visualizer();
+
+        Map<String, Double> beforeData = beforeResult != null ? visualizer.convertToChartData(beforeResult, ops)
+                : new HashMap<>();
+
+        Map<String, Double> afterData = afterResult != null ? visualizer.convertToChartData(afterResult, ops)
+                : new HashMap<>();
+
+        comparisonData.put("Before", beforeData);
+        comparisonData.put("After", afterData);
+
+        return comparisonData;
+    }
+
+    private static Map<String, Map<String, Double>> prepareCFGComparisonData(AlignmentScore beforeResult,
+            AlignmentScore afterResult) {
+        Map<String, Map<String, Double>> comparisonData = new HashMap<>();
+
+        Map<String, Double> beforeData = new HashMap<>();
+        Map<String, Double> afterData = new HashMap<>();
+
+        // Extract only food group alignment data (not overall score) for clean chart
+        // display
+        if (beforeResult != null) {
+            // Add per-food-group alignment scores only
+            beforeResult.getDetails().forEach((foodGroup, score) -> beforeData.put(foodGroup.name(), score));
+        }
+
+        if (afterResult != null) {
+            // Add per-food-group alignment scores only
+            afterResult.getDetails().forEach((foodGroup, score) -> afterData.put(foodGroup.name(), score));
+        }
+
+        comparisonData.put("Before", beforeData);
+        comparisonData.put("After", afterData);
+
+        return comparisonData;
+    }
+
+    private static Map<String, Map<String, Double>> prepareCFGSummaryData(AlignmentScore beforeResult,
+            AlignmentScore afterResult) {
+        Map<String, Map<String, Double>> summaryData = new HashMap<>();
+
+        Map<String, Double> beforeData = new HashMap<>();
+        Map<String, Double> afterData = new HashMap<>();
+
+        // Include overall scores AND food group details for summary purposes
+        if (beforeResult != null) {
+            beforeData.put("Overall Alignment", beforeResult.getScore());
+            beforeResult.getDetails().forEach((foodGroup, score) -> beforeData.put(foodGroup.name(), score));
+        }
+
+        if (afterResult != null) {
+            afterData.put("Overall Alignment", afterResult.getScore());
+            afterResult.getDetails().forEach((foodGroup, score) -> afterData.put(foodGroup.name(), score));
+        }
+
+        summaryData.put("Before", beforeData);
+        summaryData.put("After", afterData);
+
+        return summaryData;
+    }
+
 }

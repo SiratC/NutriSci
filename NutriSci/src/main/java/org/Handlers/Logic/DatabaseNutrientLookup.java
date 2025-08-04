@@ -1,4 +1,5 @@
 package org.Handlers.Logic;
+
 import org.Handlers.Database.DatabaseNutrientAmountDAO;
 import org.Dao.NutrientAmountDAO;
 import org.Enums.NutrientType;
@@ -10,7 +11,12 @@ public class DatabaseNutrientLookup implements NutrientLookup {
 
     private final NutrientAmountDAO dao = new DatabaseNutrientAmountDAO();
 
-    private final Map<Integer, NutrientType> idToType = Map.of(203, NutrientType.Protein, 204, NutrientType.Fat, 205, NutrientType.Carbohydrate, 291, NutrientType.Fiber);
+    private final Map<Integer, NutrientType> idToType = Map.of(
+            203, NutrientType.Protein, 
+            204, NutrientType.Fat, 
+            205, NutrientType.Carbohydrate, 
+            291, NutrientType.Fiber, 
+            208, NutrientType.Calories);
 
     @Override
 
@@ -39,8 +45,7 @@ public class DatabaseNutrientLookup implements NutrientLookup {
                     .filter(na -> idToType.containsKey(na.getNutrientNameId()))
                     .collect(Collectors.toMap(
                             na -> idToType.get(na.getNutrientNameId()),
-                            na -> na.getNutrientValue().doubleValue()
-                    ));
+                            na -> na.getNutrientValue().doubleValue()));
         }
 
         catch (Exception e) {
@@ -48,7 +53,5 @@ public class DatabaseNutrientLookup implements NutrientLookup {
             throw new RuntimeException("failed DB lookup for foodID " + foodId, e);
         }
     }
-
-
 
 }
