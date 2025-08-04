@@ -246,8 +246,8 @@ public class MainUI {
             JOptionPane.showMessageDialog(panel, profileDetails, "Profile Info", JOptionPane.INFORMATION_MESSAGE);
         });
 
-        JButton nutrientBreakdownTodayBtn = new JButton("Show Nutrient Breakdown (Today)");
-        nutrientBreakdownTodayBtn.addActionListener(e -> showNutrientBreakdown(panel));
+//        JButton nutrientBreakdownTodayBtn = new JButton("Show Nutrient Breakdown (Today)");
+//        nutrientBreakdownTodayBtn.addActionListener(e -> showNutrientBreakdown(panel));
 
         JButton nutrientBreakdownRangeBtn = new JButton("Show Nutrient Breakdown (Date Range)");
         nutrientBreakdownRangeBtn.addActionListener(e -> {
@@ -305,7 +305,7 @@ public class MainUI {
         editProfileBtn.addActionListener(e -> showEditProfileDialog(panel));
 
         panel.add(viewProfileBtn);
-        panel.add(nutrientBreakdownTodayBtn);
+//        panel.add(nutrientBreakdownTodayBtn);
         panel.add(nutrientBreakdownRangeBtn);
         panel.add(editProfileBtn);
 
