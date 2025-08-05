@@ -407,51 +407,46 @@ public class Visualizer {
      * @return map with "Before" and "After" keys containing nutrient data
      */
     public static Map<String, Map<String, Double>> prepareComparisonData(
-            List<Meal> originalMeals, List<Meal> currentMeals, List<NutrientType> selectedNutrients) {
-        
+        List<Meal> originalMeals, List<Meal> currentMeals, List<NutrientType> selectedNutrients) {
+
         System.out.println("[Visualizer] Preparing comparison data");
-        System.out.println("[Visualizer] Original meals: " + (originalMeals != null ? originalMeals.size() : "NULL"));
-        System.out.println("[Visualizer] Current meals: " + (currentMeals != null ? currentMeals.size() : "NULL"));
-        System.out.println("[Visualizer] Selected nutrients: " + (selectedNutrients != null ? selectedNutrients.size() : "NULL"));
-        
-        // Validation
-        if (originalMeals == null || originalMeals.isEmpty()) {
-            System.out.println("[Visualizer] ERROR: Original meals are null or empty");
-        }
-        if (currentMeals == null || currentMeals.isEmpty()) {
-            System.out.println("[Visualizer] ERROR: Current meals are null or empty");
-        }
+
+        // checking input
         if (selectedNutrients == null || selectedNutrients.isEmpty()) {
-            System.out.println("[Visualizer] ERROR: Selected nutrients are null or empty");
-            selectedNutrients = List.of(NutrientType.Protein, NutrientType.Carbohydrate, NutrientType.Fat, NutrientType.Calories); // fallback
+            System.out.println("[Visualizer] No nutrients provided, using fallback");
+            selectedNutrients = List.of(NutrientType.Protein, NutrientType.Carbohydrate, NutrientType.Fat, NutrientType.Calories);
         }
-        
+
+        // preparation of comparison maps
         Map<String, Map<String, Double>> comparisonData = new HashMap<>();
-        
-        // Calculate totals for original meals
-        System.out.println("[Visualizer] Calculating BEFORE data...");
-        Map<String, Double> beforeData = new HashMap<>();
-        for (NutrientType nutrient : selectedNutrients) {
-            double total = calculateTotalNutrient(originalMeals, nutrient);
-            beforeData.put(nutrient.name(), total);
-            System.out.println("[Visualizer] Before - " + nutrient.name() + ": " + total);
-        }
-        comparisonData.put("Before", beforeData);
-        
-        // Calculate totals for current meals  
-        System.out.println("[Visualizer] Calculating AFTER data...");
-        Map<String, Double> afterData = new HashMap<>();
-        for (NutrientType nutrient : selectedNutrients) {
-            double total = calculateTotalNutrient(currentMeals, nutrient);
-            afterData.put(nutrient.name(), total);
-            System.out.println("[Visualizer] After - " + nutrient.name() + ": " + total);
-        }
-        comparisonData.put("After", afterData);
-        
+        comparisonData.put("Before", calculateNutrientTotals(originalMeals, selectedNutrients, "Before"));
+        comparisonData.put("After", calculateNutrientTotals(currentMeals, selectedNutrients, "After"));
+
         System.out.println("[Visualizer] Comparison data prepared successfully");
         return comparisonData;
     }
-    
+
+    private static Map<String, Double> calculateNutrientTotals(
+        List<Meal> meals, List<NutrientType> nutrients, String label) {
+
+        System.out.println("[Visualizer] Calculating " + label + " data...");
+        Map<String, Double> result = new HashMap<>();
+
+        if (meals == null || meals.isEmpty()) {
+            System.out.println("[Visualizer] WARNING: " + label + " meals are null or empty");
+            return result;
+        }
+
+        for (NutrientType nutrient : nutrients) {
+            double total = calculateTotalNutrient(meals, nutrient);
+            result.put(nutrient.name(), total);
+            System.out.println("[Visualizer] " + label + " - " + nutrient.name() + ": " + total);
+        }
+
+        return result;
+    }
+
+
     /**
      * Helper method to calculate total nutrient value across meals
      * Uses consistent calculation logic with NutrientAnalyzer (database lookup + quantity scaling)

@@ -1,5 +1,5 @@
-import static org.junit.jupiter.api.Assertions.*;
 import org.Entity.Profile;
+import org.Entity.ProfileData;
 import org.Enums.Sex;
 import org.Handlers.Controller.ProfileManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ProfileManagerTest {
 
@@ -18,21 +20,21 @@ public class ProfileManagerTest {
     void setUp() {
         profileManager = ProfileManager.getInstance();
 
-        profile = new Profile(
-                UUID.randomUUID(),
-                "Alex",
-                "pass123",
-                Sex.Female,
-                LocalDate.of(2000, 1, 1),
-                165.0,
-                60.0,
-                "metric",
-                LocalDateTime.now(),
-                LocalDateTime.now()
+        ProfileData data = new ProfileData(
+            UUID.randomUUID(),
+            "Alex",
+            "pass123",
+            Sex.Female,
+            LocalDate.of(2000, 1, 1),
+            165.0,
+            60.0,
+            "metric",
+            LocalDateTime.now(),
+            LocalDateTime.now()
         );
 
+        profile = new Profile(data);
         profileManager.saveProfile(profile);
-
         profile = profileManager.loadProfileByName("Alex");
     }
 

@@ -202,17 +202,21 @@ public class MainUI {
 
             UUID id = UUID.randomUUID();
             LocalDateTime now = LocalDateTime.now();
-            Profile profile = new Profile(
-                    id,
-                    username,
-                    password,
-                    selectedSex,
-                    LocalDate.of(1990, 1, 1), // placeholder DOB
-                    170,
-                    70,
-                    "metric",
-                    now,
-                    now);
+
+            ProfileData data = new ProfileData();
+            data.setUserID(id);
+            data.setName(username);
+            data.setPassword(password);
+            data.setSex(selectedSex);
+            data.setDob(LocalDate.of(1990, 1, 1));
+            data.setHeight(170);
+            data.setWeight(70);
+            data.setUnits("metric");
+            data.setCreatedAt(now);
+            data.setModifiedAt(now);
+
+            Profile profile = new Profile(data);
+
 
             try {
                 if (profileManager.loadProfileByName(username) != null) {

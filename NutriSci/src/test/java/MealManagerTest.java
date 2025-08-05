@@ -1,6 +1,7 @@
-import static org.junit.jupiter.api.Assertions.*;
 import org.Entity.*;
-import org.Enums.*;
+import org.Enums.CFGVersion;
+import org.Enums.FoodGroup;
+import org.Enums.Sex;
 import org.Handlers.Controller.MealManager;
 import org.Handlers.Controller.ProfileManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class MealManagerTest {
 
@@ -20,27 +23,26 @@ public class MealManagerTest {
     @BeforeEach
     void setUp() {
         mealManager = MealManager.getInstance();
-
         profileManager = ProfileManager.getInstance();
         userId = UUID.randomUUID();
 
-        profile = new Profile(
-            userId,
-            "Alex",
-            "pass123",
-            Sex.Female,
-            LocalDate.of(2000, 1, 1),
-            165.0,
-            60.0,
-            "metric",
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
+        ProfileData data = new ProfileData();
+        data.setUserID(userId);
+        data.setName("Alex");
+        data.setPassword("pass123");
+        data.setSex(Sex.Female);
+        data.setDob(LocalDate.of(2000, 1, 1));
+        data.setHeight(165.0);
+        data.setWeight(60.0);
+        data.setUnits("metric");
+        data.setCreatedAt(LocalDateTime.now());
+        data.setModifiedAt(LocalDateTime.now());
 
+        profile = new Profile(data);
         profileManager.saveProfile(profile);
-
         profile = profileManager.loadProfileByName("Alex");
     }
+
 
     @Test
     void testRequestCFGAlignment_PerfectMatch_V2019() {

@@ -2,12 +2,11 @@ package org.Handlers.Database;
 
 import org.Dao.ProfileDAO;
 import org.Entity.Profile;
+import org.Entity.ProfileData;
 import org.Enums.Sex;
 
 import java.math.BigDecimal;
 import java.sql.*;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -313,19 +312,24 @@ public class DatabaseProfileDAO implements ProfileDAO {
     }
 
     private Profile mapResultSetToProfile(ResultSet rs) throws SQLException {
-        UUID userID = (UUID) rs.getObject("id");
-        String name = rs.getString("name");
-        String password = rs.getString("password");
-        Sex sex = Sex.valueOf(rs.getString("sex"));
-        LocalDate dob = rs.getDate("dob").toLocalDate();
-        double height = rs.getDouble("height");
-        double weight = rs.getDouble("weight");
-        String units = rs.getString("units");
-        LocalDateTime createdAt = rs.getTimestamp("createdAt").toLocalDateTime();
+        ProfileData data = new ProfileData();
+
+        data.setUserID((UUID) rs.getObject("id"));
+        data.setName(rs.getString("name"));
+        data.setPassword(rs.getString("password"));
+        data.setSex(Sex.valueOf(rs.getString("sex")));
+        data.setDob(rs.getDate("dob").toLocalDate());
+        data.setHeight(rs.getDouble("height"));
+        data.setWeight(rs.getDouble("weight"));
+        data.setUnits(rs.getString("units"));
+        data.setCreatedAt(rs.getTimestamp("createdAt").toLocalDateTime());
 
         Timestamp modifiedAtTimestamp = rs.getTimestamp("modifiedAt");
-        LocalDateTime modifiedAt = modifiedAtTimestamp != null ? modifiedAtTimestamp.toLocalDateTime() : null;
+        if (modifiedAtTimestamp != null) {
+            data.setModifiedAt(modifiedAtTimestamp.toLocalDateTime());
+        }
 
-        return new Profile(userID, name, password, sex, dob, height, weight, units, createdAt, modifiedAt);
+        return new Profile(data);
     }
+
 }
