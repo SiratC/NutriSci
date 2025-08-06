@@ -78,31 +78,29 @@ public class FoodGroupAnalyzer implements Analyzer<List<Meal>, FoodGroupStats> {
     }
 
 
-
-
+    // refactored
+    private static final Map<FoodGroup, List<String>> foodGroupKeywords = new EnumMap<>(Map.of(
+        FoodGroup.Grains, List.of("bread", "rice", "quinoa", "grain", "wheat"),
+        FoodGroup.Fruit, List.of("apple", "banana", "fruit"),
+        FoodGroup.Protein, List.of("chicken", "beef", "tofu", "fish", "salmon", "nuts", "almond"),
+        FoodGroup.Dairy, List.of("milk", "cheese", "yogurt"),
+        FoodGroup.Vegetables, List.of("spinach", "broccoli", "carrot", "vegetable")
+    ));
 
     private FoodGroup guessGroup(Food food) {
         String name = food.getName().toLowerCase();
 
-        if (name.contains("bread") || name.contains("rice") || name.contains("quinoa") || name.contains("grain") || name.contains("wheat"))
-            return FoodGroup.Grains;
-
-        if (name.contains("apple") || name.contains("banana") || name.contains("fruit"))
-            return FoodGroup.Fruit;
-
-        if (name.contains("chicken") || name.contains("beef") || name.contains("tofu")
-            || name.contains("fish") || name.contains("salmon")
-            || name.contains("nuts") || name.contains("almond"))
-            return FoodGroup.Protein;
-
-        if (name.contains("milk") || name.contains("cheese") || name.contains("yogurt"))
-            return FoodGroup.Dairy;
-
-        if (name.contains("spinach") || name.contains("broccoli") || name.contains("carrot") || name.contains("vegetable"))
-            return FoodGroup.Vegetables;
+        for (Map.Entry<FoodGroup, List<String>> entry : foodGroupKeywords.entrySet()) {
+            for (String keyword : entry.getValue()) {
+                if (name.contains(keyword)) {
+                    return entry.getKey();
+                }
+            }
+        }
 
         return FoodGroup.Other;
     }
+
 }
 
 
