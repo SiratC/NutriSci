@@ -4,11 +4,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.Dao.NutrientProfileDAO;
 import org.Entity.Food;
 import org.Entity.FoodName;
 import org.Entity.Meal;
@@ -20,6 +22,9 @@ import java.sql.Connection;
 public class SwapEngine {
 
     private final DatabaseFoodNameDAO foodNameDAO = new DatabaseFoodNameDAO();
+    private final NutrientProfileDAO nutrientProfileDAO = new DatabaseNutrientProfileDAO();
+    private final MealEnricher mealEnricher = new MealEnricher();
+    private final NutrientTypeMapper nutrientTypeMapper = new NutrientTypeMapper();
 
     // Result wrapper class to track whether swaps were actually applied
     public static class SwapResult {
@@ -58,7 +63,7 @@ public class SwapEngine {
     }
 
     public SwapResult applySwapWithResult(List<Meal> meals, SwapRequest request) {
-        List<Meal> mealsWithNutrients = loadNutrientsForMeals(meals);
+        List<Meal> mealsWithNutrients = mealEnricher.enrich(meals);
 
         if (request.hasSecondTarget()) {
             return applyDualTargetSwapWithResult(mealsWithNutrients, request);
@@ -72,103 +77,63 @@ public class SwapEngine {
         return applySwapWithResult(meals, request).getMeals();
     }
 
-    private SwapResult applySingleTargetSwapWithResult(List<Meal> mealsWithNutrients, SwapRequest request) {
-        NutrientType target = request.getTargetNutrient();
+    private record TargetInfo(NutrientType nutrient, double current, double target, double deficit) {
+    }
 
-        double currentTotal = calculateTotalNutrient(mealsWithNutrients, target);
-        System.out.println("Current total " + target + ": " + currentTotal);
+    private TargetInfo targetInfo(List<Meal> meals, NutrientType n, boolean pct, double amt) {
+        double cur = calculateTotalNutrient(meals, n);
+        double tar = pct ? cur * (1 + amt) : cur + amt;
+        return new TargetInfo(n, cur, tar, tar - cur);
+    }
 
-        double targetAmount;
-        if (request.isPercentage()) {
-            targetAmount = currentTotal * (1 + request.getIntensityAmount());
-        } else {
-            targetAmount = currentTotal + request.getIntensityAmount();
-        }
+    private SwapResult applyTargetSwapWithResult(List<Meal> meals, SwapRequest r) {
+        TargetInfo a = targetInfo(meals, r.getTargetNutrient(), r.isPercentage(), r.getIntensityAmount());
+        if (!r.hasSecondTarget())
+            return resolveSingle(meals, r, a);
+        TargetInfo b = targetInfo(meals, r.getSecondTargetNutrient(), r.isSecondPercentage(),
+                r.getSecondIntensityAmount());
+        return resolveDual(meals, r, a, b);
+    }
 
-        System.out.println("Target amount needed: " + targetAmount);
-        System.out.println(
-                "Request intensity: " + request.getIntensityAmount() + " (percentage: " + request.isPercentage() + ")");
-
-        double deficit = targetAmount - currentTotal;
-        System.out.println("Deficit to fill: " + deficit);
-
-        // if no meaningful deficit (either positive or negative), return original meals
-        // with no swaps applied
-        if (Math.abs(deficit) <= 0.1) {
+    private SwapResult resolveSingle(List<Meal> meals, SwapRequest r, TargetInfo t) {
+        System.out.println("Current total " + t.nutrient() + ": " + t.current());
+        System.out.println("Target amount needed: " + t.target());
+        System.out.println("Request intensity: " + r.getIntensityAmount() + " (percentage: " + r.isPercentage() + ")");
+        System.out.println("Deficit to fill: " + t.deficit());
+        if (Math.abs(t.deficit()) <= 0.1) {
             System.out.println("No meaningful deficit - returning original meals");
-            return new SwapResult(new ArrayList<>(mealsWithNutrients), false, 0);
+            return new SwapResult(new ArrayList<>(meals), false, 0);
         }
-
-        // find best swaps to achieve the goal
-        List<SwapCandidate> swapCandidates = findSwapCandidates(mealsWithNutrients, target, deficit);
-
-        // apply up to 2 best swaps
-        int maxSwaps = Math.min(2, swapCandidates.size());
-        SwapApplicationResult result = applyBestSwapsWithResult(mealsWithNutrients, swapCandidates, maxSwaps);
-
-        return new SwapResult(result.meals, result.swapsApplied > 0, result.swapsApplied);
+        List<SwapCandidate> c = findSwapCandidates(meals, t.nutrient(), t.deficit());
+        int max = Math.min(2, c.size());
+        SwapApplicationResult res = applyBestSwapsWithResult(meals, c, max);
+        return new SwapResult(res.meals, res.swapsApplied > 0, res.swapsApplied);
     }
 
-    // Legacy method for backward compatibility
-    private List<Meal> applySingleTargetSwap(List<Meal> mealsWithNutrients, SwapRequest request) {
-        return applySingleTargetSwapWithResult(mealsWithNutrients, request).getMeals();
-    }
-
-    private SwapResult applyDualTargetSwapWithResult(List<Meal> mealsWithNutrients, SwapRequest request) {
-        NutrientType target1 = request.getTargetNutrient();
-        NutrientType target2 = request.getSecondTargetNutrient();
-
-        // Calculate current totals for both nutrients
-        double currentTotal1 = calculateTotalNutrient(mealsWithNutrients, target1);
-        double currentTotal2 = calculateTotalNutrient(mealsWithNutrients, target2);
-
-        System.out.println("Current total " + target1 + ": " + currentTotal1);
-        System.out.println("Current total " + target2 + ": " + currentTotal2);
-
-        // Calculate target amounts for both nutrients
-        double targetAmount1;
-        if (request.isPercentage()) {
-            targetAmount1 = currentTotal1 * (1 + request.getIntensityAmount());
-        } else {
-            targetAmount1 = currentTotal1 + request.getIntensityAmount();
-        }
-
-        double targetAmount2;
-        if (request.isSecondPercentage()) {
-            targetAmount2 = currentTotal2 * (1 + request.getSecondIntensityAmount());
-        } else {
-            targetAmount2 = currentTotal2 + request.getSecondIntensityAmount();
-        }
-
-        double deficit1 = targetAmount1 - currentTotal1;
-        double deficit2 = targetAmount2 - currentTotal2;
-
-        System.out
-                .println("Target amount needed for " + target1 + ": " + targetAmount1 + " (deficit: " + deficit1 + ")");
-        System.out
-                .println("Target amount needed for " + target2 + ": " + targetAmount2 + " (deficit: " + deficit2 + ")");
-
-        // if both deficits are negligible (either positive or negative), return
-        // original meals with no swaps applied
-        if (Math.abs(deficit1) <= 0.1 && Math.abs(deficit2) <= 0.1) {
+    private SwapResult resolveDual(List<Meal> meals, SwapRequest r, TargetInfo a, TargetInfo b) {
+        System.out.println("Current total " + a.nutrient() + ": " + a.current());
+        System.out.println("Current total " + b.nutrient() + ": " + b.current());
+        System.out.println(
+                "Target amount needed for " + a.nutrient() + ": " + a.target() + " (deficit: " + a.deficit() + ")");
+        System.out.println(
+                "Target amount needed for " + b.nutrient() + ": " + b.target() + " (deficit: " + b.deficit() + ")");
+        if (Math.abs(a.deficit()) <= 0.1 && Math.abs(b.deficit()) <= 0.1) {
             System.out.println("No meaningful deficits - returning original meals");
-            return new SwapResult(new ArrayList<>(mealsWithNutrients), false, 0);
+            return new SwapResult(new ArrayList<>(meals), false, 0);
         }
-
-        // find best swaps to achieve both goals
-        List<SwapCandidate> swapCandidates = findDualTargetSwapCandidates(mealsWithNutrients, target1, target2,
-                deficit1, deficit2);
-
-        // apply up to 2 best swaps
-        int maxSwaps = Math.min(2, swapCandidates.size());
-        SwapApplicationResult result = applyBestSwapsWithResult(mealsWithNutrients, swapCandidates, maxSwaps);
-
-        return new SwapResult(result.meals, result.swapsApplied > 0, result.swapsApplied);
+        List<SwapCandidate> c = findDualTargetSwapCandidates(meals, a.nutrient(), b.nutrient(), a.deficit(),
+                b.deficit());
+        int max = Math.min(2, c.size());
+        SwapApplicationResult res = applyBestSwapsWithResult(meals, c, max);
+        return new SwapResult(res.meals, res.swapsApplied > 0, res.swapsApplied);
     }
 
-    // Legacy method for backward compatibility
-    private List<Meal> applyDualTargetSwap(List<Meal> mealsWithNutrients, SwapRequest request) {
-        return applyDualTargetSwapWithResult(mealsWithNutrients, request).getMeals();
+    private SwapResult applySingleTargetSwapWithResult(List<Meal> meals, SwapRequest r) {
+        return applyTargetSwapWithResult(meals, r);
+    }
+
+    private SwapResult applyDualTargetSwapWithResult(List<Meal> meals, SwapRequest r) {
+        return applyTargetSwapWithResult(meals, r);
     }
 
     private double calculateTotalNutrient(List<Meal> meals, NutrientType nutrient) {
@@ -292,160 +257,122 @@ public class SwapEngine {
         return candidates;
     }
 
-    private Optional<Food> findBetterReplacement(Food original, NutrientType targetNutrient, double deficit,
-            List<Integer> usedReplacementFoodIds)
-            throws SQLException {
-        double originalTargetValue = original.getNutrients().getOrDefault(targetNutrient, 0.0);
+    private Optional<Food> findBetterReplacement(
+            Food original,
+            NutrientType target,
+            double deficit,
+            List<Integer> usedIds) throws SQLException {
 
-        boolean isReduction = deficit < 0;
-        System.out.println("Finding replacement for: " + original.getName() +
-                " (current " + targetNutrient + ": " + originalTargetValue + ", " +
-                (isReduction ? "REDUCTION" : "INCREASE") + " needed)");
-        System.out.println("  Already used food IDs: " + usedReplacementFoodIds);
+        boolean reduction = deficit < 0;
+        int nutrientId = nutrientTypeMapper.mapNutrientTypeToId(target);
 
-        int targetNutrientId = mapNutrientTypeToId(targetNutrient);
-        System.out.println("  Looking for nutrient ID: " + targetNutrientId);
+        List<RawFood> raws = fetchRawFoods(original, nutrientId, reduction, usedIds);
 
-        // For reductions, look for foods with LOWER nutrient values (ASC)
-        // For increases, look for foods with HIGHER nutrient values (DESC)
-        String sortOrder = isReduction ? "ASC" : "DESC";
+        List<CandidateFood> candidates = buildCandidates(
+                raws, original, target, deficit, reduction);
 
-        // Calculate minimum nutrient value for database filtering
-        double minimumDatabaseValue = 0.1; // Default minimum for increases
-        if (isReduction) {
-            // For reductions, set minimum based on original value (at least 25% or 1g)
-            double minimumAcceptableValue = Math.max(originalTargetValue * 0.25, 1.0);
-            // Convert back to per-100g for database query
-            minimumDatabaseValue = minimumAcceptableValue / (original.getQuantity() / 100.0);
-        }
+        if (candidates.isEmpty())
+            return Optional.empty();
+
+        CandidateFood best = candidates.get(0);
+        Map<NutrientType, Double> profile = nutrientProfileDAO.profile(best.foodId, original.getQuantity());
+        double calories = calculateCalories(best.foodId, original.getQuantity());
+
+        Food f = new Food(best.foodId, best.description, original.getQuantity(), calories);
+        f.setNutrients(profile);
+        f.setCalories(calories);
+        return Optional.of(f);
+    }
+
+    private List<RawFood> fetchRawFoods(
+            Food original,
+            int nutrientId,
+            boolean reduction,
+            List<Integer> usedIds) throws SQLException {
+
+        String order = reduction ? "ASC" : "DESC";
+        double minVal = minimumDatabaseValue(original, reduction);
 
         String sql = """
                 SELECT f.foodId, f.foodDescription, na.nutrientValue
-                FROM FoodName f
-                JOIN NutrientAmount na ON f.foodId = na.foodId
-                WHERE na.nutrientNameId = ?
-                AND f.foodId != ?
-                AND na.nutrientValue >= ?
-                ORDER BY na.nutrientValue """ + " " + sortOrder + """
+                FROM   FoodName f
+                JOIN   NutrientAmount na ON f.foodId = na.foodId
+                WHERE  na.nutrientNameId = ?
+                  AND  f.foodId <> ?
+                  AND  na.nutrientValue >= ?
+                ORDER BY na.nutrientValue """ + order + " LIMIT 20";
 
-                LIMIT 20
-                """;
+        List<RawFood> out = new ArrayList<>();
 
-        List<CandidateFood> candidates = new ArrayList<>();
+        try (Connection c = DatabaseConnection.getConnection();
+                PreparedStatement ps = c.prepareStatement(sql)) {
 
-        System.out.println(
-                "  Database filter minimum value: " + String.format("%.1f", minimumDatabaseValue) + "g per 100g");
-
-        try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, targetNutrientId);
+            ps.setInt(1, nutrientId);
             ps.setInt(2, original.getFoodID());
-            ps.setDouble(3, minimumDatabaseValue);
+            ps.setDouble(3, minVal);
 
             try (ResultSet rs = ps.executeQuery()) {
-                int count = 0;
                 while (rs.next()) {
-                    count++;
-                    int foodId = rs.getInt("foodId");
-                    String description = rs.getString("foodDescription");
-                    double nutrientValuePer100g = rs.getDouble("nutrientValue");
-
-                    // skip if this food has already been used as a replacement
-                    if (usedReplacementFoodIds.contains(foodId)) {
-                        System.out.println("    Row " + count + ": " + description + " (SKIPPED - already used)");
+                    int id = rs.getInt(1);
+                    if (usedIds.contains(id))
                         continue;
-                    }
-
-                    // calculate improvement for the same quantity as original food
-                    double scaledValue = nutrientValuePer100g * (original.getQuantity() / 100.0);
-                    double improvement = scaledValue - originalTargetValue;
-
-                    System.out.println("    Row " + count + ": " + description +
-                            " (per100g: " + nutrientValuePer100g +
-                            ", scaled: " + String.format("%.1f", scaledValue) +
-                            ", improvement: " + String.format("%.1f", improvement) + ")");
-
-                    // For reductions, prevent over-reduction by setting minimum thresholds
-                    boolean isGoodCandidate;
-                    if (isReduction) {
-                        // Calculate minimum acceptable nutrient value (at least 25% of original, or 1g
-                        // minimum)
-                        double minimumAcceptableValue = Math.max(originalTargetValue * 0.25, 1.0);
-
-                        // For meaningful reduction but not too much
-                        boolean meaningfulReduction = improvement < -0.1;
-                        boolean notOverReduced = scaledValue >= minimumAcceptableValue;
-
-                        isGoodCandidate = meaningfulReduction && notOverReduced;
-
-                        if (meaningfulReduction && !notOverReduced) {
-                            System.out.println("      -> REJECTED: Over-reduction (scaled: " +
-                                    String.format("%.1f", scaledValue) + "g < minimum: " +
-                                    String.format("%.1f", minimumAcceptableValue) + "g)");
-                        }
-                    } else {
-                        // For increases, use original logic
-                        isGoodCandidate = improvement > 0.1;
-                    }
-                    if (isGoodCandidate) {
-                        // Calculate target proximity score - how close this gets us to filling the
-                        // deficit
-                        double targetProximityScore;
-                        if (isReduction) {
-                            // For reductions, prefer candidates that don't over-reduce
-                            // Score based on how close the improvement is to the deficit needed
-                            double targetImprovement = deficit; // deficit is negative for reductions
-                            double proximityToTarget = Math.abs(improvement - targetImprovement);
-                            targetProximityScore = 1.0 / (1.0 + proximityToTarget); // Higher score for closer to target
-                        } else {
-                            // For increases, prefer larger improvements (original logic)
-                            targetProximityScore = improvement;
-                        }
-
-                        candidates.add(new CandidateFood(foodId, description, improvement, targetProximityScore));
-                        System.out.println("      -> Added as candidate (target proximity: " +
-                                String.format("%.3f", targetProximityScore) + ")");
-                    }
-                }
-                System.out.println("  Total rows found: " + count);
-            }
-        }
-
-        if (candidates.isEmpty()) {
-            System.out.println(
-                    "  No candidates found, checking if nutrient ID " + targetNutrientId + " exists in database...");
-
-            String debugSql2 = "SELECT COUNT(*) FROM NutrientAmount WHERE nutrientNameId = ?";
-            try (Connection conn = DatabaseConnection.getConnection();
-                    PreparedStatement ps = conn.prepareStatement(debugSql2)) {
-                ps.setInt(1, targetNutrientId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        int count = rs.getInt(1);
-                        System.out.println("  Found " + count + " records with nutrient ID " + targetNutrientId);
-                    }
+                    out.add(new RawFood(id, rs.getString(2), rs.getDouble(3)));
                 }
             }
+        }
+        return out;
+    }
 
-            return Optional.empty();
+    private double minimumDatabaseValue(Food original, boolean reduction) {
+        if (!reduction)
+            return 0.1;
+        double minAcc = Math.max(
+                original.getNutrients().values().stream().mapToDouble(Double::doubleValue).sum() * 0.25,
+                1.0);
+        return minAcc / (original.getQuantity() / 100.0);
+    }
+
+    private List<CandidateFood> buildCandidates(
+            List<RawFood> raws,
+            Food original,
+            NutrientType target,
+            double deficit,
+            boolean reduction) {
+
+        double origVal = original.getNutrients().getOrDefault(target, 0.0);
+        double scale = original.getQuantity() / 100.0;
+
+        List<CandidateFood> list = new ArrayList<>();
+
+        for (RawFood r : raws) {
+            double scaled = r.per100g * scale;
+            double improvement = scaled - origVal;
+
+            boolean accept;
+            if (reduction) {
+                boolean ok = improvement < -0.1;
+                boolean safe = scaled >= origVal * 0.25;
+                accept = ok && safe;
+            } else {
+                accept = improvement > 0.1;
+            }
+            if (!accept)
+                continue;
+
+            double score;
+            if (reduction) {
+                score = 1.0 / (1.0 + Math.abs(improvement - deficit));
+            } else {
+                score = improvement;
+            }
+            list.add(new CandidateFood(r.foodId, r.description, improvement, score));
         }
 
-        // take the best candidate (highest improvement)
-        CandidateFood best = candidates.get(0);
+        list.sort(Comparator.comparingDouble(c -> -c.targetProximityScore));
+        return list;
+    }
 
-        // load full nutrient profile for the selected food
-        Map<NutrientType, Double> nutrients = loadNutrientProfile(best.foodId, original.getQuantity());
-        double calories = calculateCalories(best.foodId, original.getQuantity());
-
-        System.out.println("  Selected: " + best.description + " (improvement: +" +
-                String.format("%.1f", best.improvement) + "g " + targetNutrient + ")");
-
-        Food replacement = new Food(best.foodId, best.description, original.getQuantity(), calories);
-        replacement.setNutrients(nutrients);
-        replacement.setCalories(calories);
-
-        return Optional.of(replacement);
+    private record RawFood(int foodId, String description, double per100g) {
     }
 
     private Optional<Food> findBetterDualTargetReplacement(Food original, NutrientType target1, NutrientType target2,
@@ -459,8 +386,8 @@ public class SwapEngine {
                 ", " + target2 + ": " + originalTarget2Value + ")");
         System.out.println("  Already used food IDs: " + usedReplacementFoodIds);
 
-        int target1NutrientId = mapNutrientTypeToId(target1);
-        int target2NutrientId = mapNutrientTypeToId(target2);
+        int target1NutrientId = nutrientTypeMapper.mapNutrientTypeToId(target1);
+        int target2NutrientId = nutrientTypeMapper.mapNutrientTypeToId(target2);
 
         // Query foods with data for both nutrients, prioritizing foods that improve
         // either nutrient
@@ -545,7 +472,7 @@ public class SwapEngine {
         DualTargetCandidateFood best = candidates.get(0);
 
         // load full nutrient profile for the selected food
-        Map<NutrientType, Double> nutrients = loadNutrientProfile(best.foodId, original.getQuantity());
+        Map<NutrientType, Double> nutrients = nutrientProfileDAO.profile(best.foodId, original.getQuantity());
         double calories = calculateCalories(best.foodId, original.getQuantity());
 
         System.out.println("  Selected: " + best.description + " (improvements: " +
@@ -595,143 +522,6 @@ public class SwapEngine {
             this.improvement1 = improvement1;
             this.improvement2 = improvement2;
         }
-    }
-
-    private Map<NutrientType, Double> loadNutrientProfile(int foodId, double quantity) throws SQLException {
-        Map<NutrientType, Double> nutrients = new HashMap<>();
-        double scaleFactor = quantity / 100.0;
-
-        String sql = """
-                SELECT na.nutrientNameId, na.nutrientValue
-                FROM NutrientAmount na
-                WHERE na.foodId = ?
-                """;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, foodId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    int nutrientId = rs.getInt("nutrientNameId");
-                    double valuePer100g = rs.getDouble("nutrientValue");
-
-                    NutrientType type = mapIdToNutrientType(nutrientId);
-                    if (type != null) {
-                        nutrients.put(type, valuePer100g * scaleFactor);
-                    }
-                }
-            }
-        }
-
-        return nutrients;
-    }
-
-    private List<Meal> loadNutrientsForMeals(List<Meal> originalMeals) {
-        List<Meal> result = new ArrayList<>();
-
-        for (Meal meal : originalMeals) {
-            if (meal.getId() == null) {
-                result.add(loadNutrientsForUnsavedMeal(meal));
-            } else {
-                result.add(loadNutrientsForSavedMeal(meal));
-            }
-        }
-
-        return result;
-    }
-
-    private Meal loadNutrientsForSavedMeal(Meal meal) {
-        try {
-            String sql = """
-                    SELECT mlf.foodId, mlf.quantity, f.foodDescription,
-                           na.nutrientNameId, na.nutrientValue
-                    FROM MealLogFoods mlf
-                    JOIN FoodName f ON mlf.foodId = f.foodId
-                    JOIN NutrientAmount na ON f.foodId = na.foodId
-                    WHERE mlf.logId = ?
-                    ORDER BY mlf.foodId, na.nutrientNameId
-                    """;
-
-            Map<Integer, Food> foodMap = new HashMap<>();
-            Map<Integer, Map<NutrientType, Double>> nutrientMaps = new HashMap<>();
-
-            try (Connection conn = DatabaseConnection.getConnection();
-                    PreparedStatement ps = conn.prepareStatement(sql)) {
-
-                ps.setObject(1, meal.getId());
-
-                try (ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        int foodId = rs.getInt("foodId");
-                        double quantity = rs.getDouble("quantity");
-                        String description = rs.getString("foodDescription");
-                        int nutrientId = rs.getInt("nutrientNameId");
-                        double nutrientValuePer100g = rs.getDouble("nutrientValue");
-
-                        if (!foodMap.containsKey(foodId)) {
-                            foodMap.put(foodId, new Food(foodId, description, quantity, 0.0));
-                            nutrientMaps.put(foodId, new HashMap<>());
-                        }
-
-                        NutrientType type = mapIdToNutrientType(nutrientId);
-                        if (type != null) {
-                            double scaledValue = nutrientValuePer100g * (quantity / 100.0);
-                            nutrientMaps.get(foodId).put(type, scaledValue);
-                        }
-                    }
-                }
-            }
-
-            Meal.Builder builder = new Meal.Builder()
-                    .withDate(meal.getDate())
-                    .withId(meal.getId())
-                    .withType(meal.getType());
-
-            for (Food food : foodMap.values()) {
-                Map<NutrientType, Double> nutrients = nutrientMaps.get(food.getFoodID());
-                double calories = calculateCalories(food.getFoodID(), food.getQuantity());
-
-                food.setNutrients(nutrients);
-                food.setCalories(calories);
-                builder.add(food);
-            }
-
-            return builder.build();
-
-        } catch (SQLException e) {
-            System.err.println("Failed to load nutrients for saved meal: " + e.getMessage());
-            return meal; // Return original meal if loading fails
-        }
-    }
-
-    private Meal loadNutrientsForUnsavedMeal(Meal meal) {
-        Meal.Builder builder = new Meal.Builder()
-                .withDate(meal.getDate())
-                .withId(meal.getId())
-                .withType(meal.getType());
-
-        for (Food food : meal.getItems()) {
-            if (food.getNutrients().isEmpty()) {
-                try {
-                    Map<NutrientType, Double> nutrients = loadNutrientProfile(food.getFoodID(), food.getQuantity());
-                    double calories = calculateCalories(food.getFoodID(), food.getQuantity());
-
-                    Food enrichedFood = new Food(food.getFoodID(), food.getName(), food.getQuantity(), calories);
-                    enrichedFood.setNutrients(nutrients);
-                    enrichedFood.setCalories(calories);
-                    builder.add(enrichedFood);
-                } catch (SQLException e) {
-                    System.err.println("Failed to load nutrients for " + food.getName() + ": " + e.getMessage());
-                    builder.add(food);
-                }
-            } else {
-                builder.add(food);
-            }
-        }
-
-        return builder.build();
     }
 
     // Helper class for candidate foods
@@ -821,33 +611,6 @@ public class SwapEngine {
 
         System.out.println("Successfully applied " + swapsApplied + " swaps");
         return new SwapApplicationResult(result, swapsApplied);
-    }
-
-    // Legacy method for backward compatibility
-    private List<Meal> applyBestSwaps(List<Meal> originalMeals, List<SwapCandidate> candidates, int maxSwaps) {
-        return applyBestSwapsWithResult(originalMeals, candidates, maxSwaps).meals;
-    }
-
-    private int mapNutrientTypeToId(NutrientType type) {
-        return switch (type) {
-            case Protein -> 203;
-            case Carbohydrate -> 205;
-            case Fat -> 204;
-            case Fiber -> 291;
-            case Calories -> 208;
-            default -> 9999;
-        };
-    }
-
-    private NutrientType mapIdToNutrientType(int id) {
-        return switch (id) {
-            case 203 -> NutrientType.Protein;
-            case 205 -> NutrientType.Carbohydrate;
-            case 204 -> NutrientType.Fat;
-            case 291 -> NutrientType.Fiber;
-            case 208 -> NutrientType.Calories; // Technically not a nutrient but considered as such for swaps
-            default -> null;
-        };
     }
 
     private String guessGroup(String description) {
