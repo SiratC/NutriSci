@@ -1,5 +1,7 @@
 package org.Entity;
 
+import org.Enums.FoodGroup;
+
 public class CFGDifference {
 
     private final FoodGroupStats beforeStats;
@@ -22,16 +24,20 @@ public class CFGDifference {
         return afterStats;
     }
 
+
+    public double getChangeForGroup(FoodGroup group) {
+        return calculateDelta(group);
+    }
+
     /**
      * returns the delta (%) between before and after for a specific food group.
      */
-    public double getChangeForGroup(org.Enums.FoodGroup group) {
-
+    private double calculateDelta(FoodGroup group) {
         double before = beforeStats.getPercentage(group);
         double after = afterStats.getPercentage(group);
-
         return after - before;
     }
+
 
     // for debug purpose
     @Override
