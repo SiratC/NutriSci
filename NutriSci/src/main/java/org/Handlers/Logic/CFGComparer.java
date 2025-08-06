@@ -1,19 +1,31 @@
 package org.Handlers.Logic;
+
 import org.Entity.AlignmentScore;
 import org.Entity.FoodGroupStats;
 import org.Entity.Meal;
 import org.Enums.CFGVersion;
 import org.Enums.FoodGroup;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+
+import java.util.*;
 
 public class CFGComparer implements Analyzer<FoodGroupStats, AlignmentScore> {
 
+
+    private static final Map<CFGVersion, Map<FoodGroup, Double>> CFG_TARGETS = Map.of(
+        CFGVersion.V2019, Map.of(
+            FoodGroup.Vegetables, 50.0,
+            FoodGroup.Protein, 25.0,
+            FoodGroup.Grains, 25.0
+        ),
+        CFGVersion.V2007, Map.of(
+            FoodGroup.Vegetables, 35.0,
+            FoodGroup.Protein, 30.0,
+            FoodGroup.Grains, 35.0
+        )
+    );
+
     @Override
     public AlignmentScore analyze(FoodGroupStats stats) {
-        
         return analyze(stats, CFGVersion.V2019);
     }
 
@@ -38,30 +50,12 @@ public class CFGComparer implements Analyzer<FoodGroupStats, AlignmentScore> {
         return new AlignmentScore(avgScore, alignmentMap);
     }
 
+
     private Map<FoodGroup, Double> getTargets(CFGVersion version) {
-        Map<FoodGroup, Double> map = new EnumMap<>(FoodGroup.class);
-
-        if (version == CFGVersion.V2019) {
-            map.put(FoodGroup.Vegetables, 50.0);
-            map.put(FoodGroup.Protein, 25.0);
-            map.put(FoodGroup.Grains, 25.0);
-        } 
-        else if (version == CFGVersion.V2007) {
-            map.put(FoodGroup.Vegetables, 35.0);
-            map.put(FoodGroup.Protein, 30.0);
-            map.put(FoodGroup.Grains, 35.0);
-        } 
-        else {
-            map.put(FoodGroup.Vegetables, 50.0);
-            map.put(FoodGroup.Protein, 25.0);
-            map.put(FoodGroup.Grains, 25.0);
-        }
-
-        return map;
+        return new HashMap<>(CFG_TARGETS.getOrDefault(version, CFG_TARGETS.get(CFGVersion.V2019)));
     }
 
     public void update(String action, UUID userId, List<Meal> meals) {
-        
         System.out.println("[CFGComparer] update triggered: " + action + " for user " + userId);
     }
 }
